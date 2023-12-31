@@ -36,19 +36,15 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        if msg.content == "!ping" {
-            if let Err(why) = msg.channel_id.say(&ctx.http, "Pong!").await {
-                println!("Error sending message: {why:?}");
-            }
-        }
+        let data = initialize_data(&ctx).await;
+        let mut data = data.write().await;
+        let channel = msg.channel(&ctx).await.expect("Failed to get channel");
     }
     async fn ready(&self, ctx: Context, _: Ready) {
         let data = initialize_data(&ctx).await;
         let mut data = data.write().await;
-        if data.first_launch {
-            data.first_launch = false;
-            let channels = get_channel_listing(&ctx).await;
-            for channel in channels {
+        if check_first_launch(data) {
+            for channel in get_channel_listing(&ctx).await {
                 if channel.1.name == "mythic-plus-pickup" {
                     channel.1.id.say(&ctx.http, "Bot reloaded").await.expect("Failed to send message.");
                 }
