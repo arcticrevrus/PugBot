@@ -43,11 +43,7 @@ impl EventHandler for Handler {
         }
     }
     async fn ready(&self, ctx: Context, _: Ready) {
-        let data = {
-            let data_read = ctx.data.read().await;
-            data_read.get::<DataKey>().expect("Expected Data in TypeMap.").clone()
-        };
-
+        let data = initialize_data(&ctx).await;
         let mut data = data.write().await;
         if data.first_launch {
             data.first_launch = false;

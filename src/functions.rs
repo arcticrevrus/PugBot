@@ -11,3 +11,10 @@ pub async fn get_channel_listing(ctx: &Context) -> Vec<(ChannelId, GuildChannel)
     }
     return channels
 }
+
+pub async fn initialize_data(ctx: &Context) -> Arc<RwLock<Data>> {
+    let data_read = ctx.data.read().await;
+    data_read.get::<DataKey>()
+        .expect("Expected Data in TypeMap.")
+        .clone()
+}
