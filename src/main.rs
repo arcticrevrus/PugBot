@@ -24,6 +24,7 @@ async fn main() {
             tank_queue: Arc::new(Mutex::new(Vec::new())),
             healer_queue: Arc::new(Mutex::new(Vec::new())),
             dps_queue: Arc::new(Mutex::new(Vec::new())),
+            listen_channel: "mythic-plus-pickup".to_string()
          })));
     }
     if let Err(why) = client.start().await {

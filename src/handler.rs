@@ -1,5 +1,6 @@
 
 use std::sync::Arc;
+use serenity::all::Channel;
 use serenity::prelude::*;
 use serenity::async_trait;
 use serenity::model::channel::Message;
@@ -12,6 +13,7 @@ pub struct Data {
     pub tank_queue: Arc<Mutex<Vec<Player>>>,
     pub healer_queue: Arc<Mutex<Vec<Player>>>,
     pub dps_queue: Arc<Mutex<Vec<Player>>>,
+    pub listen_channel: String
 }
 
 pub struct Player {
@@ -44,12 +46,9 @@ impl EventHandler for Handler {
         let data = initialize_data(&ctx).await;
         let mut data = data.write().await;
         if check_first_launch(data) {
-            for channel in get_channel_listing(&ctx).await {
-                if channel.1.name == "mythic-plus-pickup" {
-                    channel.1.id.say(&ctx.http, "Bot reloaded").await.expect("Failed to send message.");
-                }
-            }
-        println!("Connected")
+            let channel = get_listen_channel(&ctx, &data).await;
+            channel.say(&ctx.http, "Bot reloaded").await.expect("Failed to send message.");
         }
     }
+    println!("Connected");
 }

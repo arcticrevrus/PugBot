@@ -27,3 +27,12 @@ pub async fn get_channel_listing(ctx: &Context) -> Vec<(ChannelId, GuildChannel)
     }
     return channels
 }
+
+pub async fn get_listen_channel(ctx: &Context, data: &Data) -> ChannelId {
+    for channel in get_channel_listing(&ctx).await {
+        if channel.1.name == data.listen_channel {
+            return channel.1.id;
+        }
+    }
+    panic!("get_listen_channel failed to return channel")
+}
