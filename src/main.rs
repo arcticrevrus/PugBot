@@ -1,26 +1,9 @@
 use std::env;
-use serenity::async_trait;
-use serenity::model::channel::Message;
-use serenity::model::gateway::Ready;
-use serenity::model::guild;
+use std::sync::Arc;
 use serenity::prelude::*;
+use crate::handler::{*};
 mod functions;
-
-struct Handler;
-
-#[async_trait]
-impl EventHandler for Handler {
-    async fn message(&self, ctx: Context, msg: Message) {
-        if msg.content == "!ping" {
-            if let Err(why) = msg.channel_id.say(&ctx.http, "Pong!").await {
-                println!("Error sending message: {why:?}");
-            }
-        }
-    }
-    async fn ready(&self, ctx: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
-    }
-}
+mod handler;
 
 #[tokio::main]
 async fn main() {
@@ -29,7 +12,20 @@ async fn main() {
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
     let mut client =
-        Client::builder(&token, intents).event_handler(Handler).await.expect("Err creating client");
+        Client::builder(&token, intents)
+            .event_handler(Handler)
+            .await
+            .expect("Err creating client");
+
+    {
+        let mut data = client.data.write().await;
+        data.insert::<DataKey>(Arc::new(RwLock::new(Data { 
+            first_launch: true,
+            tank_queue: Arc::new(Mutex::new(Vec::new())),
+            healer_queue: Arc::new(Mutex::new(Vec::new())),
+            dps_queue: Arc::new(Mutex::new(Vec::new())),
+         })));
+    }
     if let Err(why) = client.start().await {
         println!("Client error: {why:?}");
     }
