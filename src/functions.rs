@@ -15,7 +15,7 @@ pub struct Player {
     pub role: Roles,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum Roles {
     Tank,
     Healer,
@@ -116,24 +116,22 @@ let leave_button = CreateButton::new("leave")
     vec![tank_button, healer_button, dps_button, leave_button]
 }
 
-pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, role: String) {
+pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, role: Roles) {
     let data = initialize_data(&ctx).await;
     let data = data.write().await;
     let mut tank_queue = data.tank_queue.lock().await;
     let mut healer_queue = data.healer_queue.lock().await;
     let mut dps_queue = data.dps_queue.lock().await;
-
-    match role.as_str() {
-        "tank" => {
-            let player = create_player(&user, "tank".to_string());
+    let player = create_player(&user, &role);
+    match role {
+        Roles::Tank => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
                 tank_queue.push(player);
                 channel.id().say(&ctx.http, format!("{} has added to tank queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
             } else {
                 channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();            }
         },
-        "healer" => {
-            let player = create_player(&user, "healer".to_string());
+        Roles::Healer => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
                 healer_queue.push(player);
                 channel.id().say(&ctx.http, format!("{} has added to healer queue.", user.global_name.as_ref().unwrap())).await.expect("Error sending message");
@@ -141,15 +139,13 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
                 channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();
             }
         },
-        "dps" => {
-            let player = create_player(&user, "dps".to_string());
+        Roles::DPS => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
                 dps_queue.push(player);
                 channel.id().say(&ctx.http, format!("{} has added to tank queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
             } else {
                 channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();            }
-        },
-        _ => ()
+        }
     }
     if tank_queue.len() >= 1 && healer_queue.len() >= 1 && dps_queue.len() >= 3 {
         let mut game_found: String = "Game found! The players are: ".to_owned();
@@ -169,14 +165,10 @@ pub async fn remove_from_queue(ctx: &Context, user: &User) {
     dps_queue.retain(|p| p.name.id != user.id)
 }
 
-fn create_player(user: &User, role: String) -> Player {
+fn create_player(user: &User, role: &Roles) -> Player {
     let player = Player {
         name: user.clone(),
-        role: match role.to_string() {
-            tank => Roles::Tank,
-            healer => Roles::Healer,
-            dps => Roles::DPS
-        }
+        role: role.clone()
     };
 
     player

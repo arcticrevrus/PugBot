@@ -29,19 +29,19 @@ impl EventHandler for Handler {
     
             match button_id.as_str() {
                 "add_tank" => {
-                    add_user_to_queue(&ctx, &user, &channel, "tank".to_owned()).await;
+                    add_user_to_queue(&ctx, &user, &channel, Roles::Tank).await;
                     clean_messages(&ctx, &channel, &ctx.http.get_current_user().await.unwrap().id).await;
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
                 }
                 "add_healer" => {
-                    add_user_to_queue(&ctx, &user, &channel, "healer".to_owned()).await;
+                    add_user_to_queue(&ctx, &user, &channel, Roles::Healer).await;
                     clean_messages(&ctx, channel, &ctx.http.get_current_user().await.unwrap().id).await;
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
                 }
                 "add_dps" => {
-                    add_user_to_queue(&ctx, &user, &channel, "dps".to_owned()).await;
+                    add_user_to_queue(&ctx, &user, &channel, Roles::DPS).await;
                     clean_messages(&ctx, &channel, &ctx.http.get_current_user().await.unwrap().id).await;
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
