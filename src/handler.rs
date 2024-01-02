@@ -1,5 +1,6 @@
 
 use std::ops::Deref;
+
 use serenity::all::Interaction;
 use serenity::prelude::*;
 use serenity::async_trait;
@@ -16,16 +17,15 @@ impl EventHandler for Handler {
         let data = data.write().await;
         let channel = msg.channel(&ctx).await.expect("Failed to get channel");
         let bot_user_id = ctx.cache.current_user().id;
+
         if msg.author.id != bot_user_id {
             clean_messages(&ctx, &channel, &bot_user_id).await;
             if channel.id().name(&ctx).await.unwrap() == get_listen_channel(&ctx, data.deref()).await.name(&ctx).await.unwrap() {
-                // Acquire locks, get lengths, and release locks
-                let tank_length = data.tank_queue.lock().await.len();
-                let healer_length = data.healer_queue.lock().await.len();
-                let dps_length = data.dps_queue.lock().await.len();
-    
-                // Call create_message_contents with lengths
-                let contents = create_message_contents(tank_length, healer_length, dps_length);
+                let contents = create_message_contents(
+                    data.tank_queue.lock().await.len(),
+                    data.healer_queue.lock().await.len(),
+                    data.dps_queue.lock().await.len()
+                );
                 channel.id().send_message(&ctx, contents).await.unwrap();
             }
         }
