@@ -142,7 +142,7 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
         Roles::DPS => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
                 dps_queue.push(player);
-                channel.id().say(&ctx.http, format!("{} has added to tank queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
+                channel.id().say(&ctx.http, format!("{} has added to dps queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
             } else {
                 channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();            }
         }
