@@ -29,13 +29,13 @@ pub struct DataKey;
 
 pub struct Handler;
 
-pub fn check_first_launch(mut data: RwLockWriteGuard<'_, Data>) -> (bool, RwLockWriteGuard<'_, Data>) {
+pub fn check_first_launch(mut data: tokio::sync::RwLockWriteGuard<'_, Data, >) -> bool {
     let first_launch = data.first_launch;
 
     if first_launch {
         data.first_launch = false;
     }
-    (first_launch, data)
+    first_launch
 }
 
 pub async fn initialize_data(ctx: &Context) -> Arc<RwLock<Data>> {
@@ -57,7 +57,9 @@ pub async fn get_channel_listing(ctx: &Context) -> Vec<(ChannelId, GuildChannel)
     return channels
 }
 
-pub async fn get_listen_channel(ctx: &Context, data: &Data) -> ChannelId {
+pub async fn get_listen_channel(ctx: &Context) -> ChannelId {
+    let data = initialize_data(&ctx).await;
+    let data = data.write().await;
     for channel in get_channel_listing(&ctx).await {
         if channel.1.name == data.listen_channel {
             return channel.1.id;
@@ -67,25 +69,26 @@ pub async fn get_listen_channel(ctx: &Context, data: &Data) -> ChannelId {
 }
 
 pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
-    for message in channel.id().messages(&ctx, GetMessages::new()).await.unwrap() {
+    for message in channel.id().messages(&ctx, GetMessages::new()).await.expect("Error getting channel messages") {
         if &message.author.id == user {
-            if message.content.contains("The current queue") {
-                message.delete(&ctx).await.unwrap();
+            if message.embeds.is_empty() != true {
+                message.delete(&ctx).await.expect("Error deleting messages");
             }
         }
     }
 }
 
-pub fn create_message_contents(
-    tank_queue_len: usize,
-    healer_queue_len: usize,
-    dps_queue_len: usize) -> CreateMessage {
-
+pub async fn create_message_contents(ctx: &Context) -> CreateMessage {
+    let data = initialize_data(&ctx).await;
+    let data = data.write().await;
+    let tank_queue_len = data.tank_queue.lock().await.len().to_string();
+    let healer_queue_len = data.healer_queue.lock().await.len().to_string();
+    let dps_queue_len = data.dps_queue.lock().await.len().to_string();
     let embed = CreateEmbed::new()
         .title("The current queue is:")
-        .field("<:tank:444634700523241512>", tank_queue_len.to_string(), true)
-        .field("<:heal:444634700363857921>", healer_queue_len.to_string(), true)
-        .field("<:dps:444634700531630094>", dps_queue_len.to_string(), true)
+        .field("<:tank:444634700523241512>", tank_queue_len, true)
+        .field("<:heal:444634700363857921>", healer_queue_len, true)
+        .field("<:dps:444634700531630094>", dps_queue_len, true)
         .color(Colour::FOOYOO);
     let buttons = make_buttons();
     let mut contents = CreateMessage::new().add_embed(embed);
@@ -124,13 +127,13 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, role: String) {
             locked_queue.push(player);
         },
         "healer" => {
-            let queue = &data.tank_queue;
+            let queue = &data.healer_queue;
             let mut locked_queue = queue.lock().await;
             let player = create_player(&user, "healer".to_string());
             locked_queue.push(player);
         },
         "dps" => {
-            let queue = &data.tank_queue;
+            let queue = &data.dps_queue;
             let mut locked_queue = queue.lock().await;
             let player = create_player(&user, "dps".to_string());
             locked_queue.push(player);
@@ -138,6 +141,17 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, role: String) {
         _ => ()
     }
 
+}
+
+pub async fn remove_from_queue(ctx: &Context, user: &User) {
+    let data = initialize_data(&ctx).await;
+    let data = data.write().await;
+    let mut tank_queue = data.tank_queue.lock().await;
+    let mut healer_queue = data.healer_queue.lock().await;
+    let mut dps_queue = data.dps_queue.lock().await;
+    tank_queue.retain(|p| p.name.id != user.id);
+    healer_queue.retain(|p| p.name.id != user.id);
+    dps_queue.retain(|p| p.name.id != user.id)
 }
 
 fn create_player(user: &User, role: String) -> Player {
