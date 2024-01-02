@@ -1,6 +1,4 @@
 
-use std::ops::Deref;
-
 use serenity::all::Interaction;
 use serenity::prelude::*;
 use serenity::async_trait;
@@ -27,28 +25,26 @@ impl EventHandler for Handler {
         if let Some(button) = interaction.message_component() {
             let user = &button.user;
             let button_id = &button.data.custom_id;
+            let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
     
             match button_id.as_str() {
                 "add_tank" => {
-                    add_user_to_queue(&ctx, &user, "tank".to_owned()).await;
-                    clean_messages(&ctx, &button.channel_id.to_channel(&ctx.http).await.unwrap(), &ctx.http.get_current_user().await.unwrap().id).await;
+                    add_user_to_queue(&ctx, &user, &channel, "tank".to_owned()).await;
+                    clean_messages(&ctx, &channel, &ctx.http.get_current_user().await.unwrap().id).await;
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
-                    button.channel_id.say(&ctx.http, format!("{} has added to tank queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
                 }
                 "add_healer" => {
-                    add_user_to_queue(&ctx, &user, "healer".to_owned()).await;
-                    clean_messages(&ctx, &button.channel_id.to_channel(&ctx.http).await.unwrap(), &ctx.http.get_current_user().await.unwrap().id).await;
+                    add_user_to_queue(&ctx, &user, &channel, "healer".to_owned()).await;
+                    clean_messages(&ctx, channel, &ctx.http.get_current_user().await.unwrap().id).await;
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
-                    button.channel_id.say(&ctx.http, format!("{} has added to healer queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
                 }
                 "add_dps" => {
-                    add_user_to_queue(&ctx, &user, "dps".to_owned()).await;
-                    clean_messages(&ctx, &button.channel_id.to_channel(&ctx.http).await.unwrap(), &ctx.http.get_current_user().await.unwrap().id).await;
+                    add_user_to_queue(&ctx, &user, &channel, "dps".to_owned()).await;
+                    clean_messages(&ctx, &channel, &ctx.http.get_current_user().await.unwrap().id).await;
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
-                    button.channel_id.say(&ctx.http, format!("{} has added to dps queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
                 }
                 "leave" => {
                     remove_from_queue(&ctx, user).await;

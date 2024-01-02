@@ -1,7 +1,6 @@
 use std::env;
 use std::sync::Arc;
 use serenity::prelude::*;
-use crate::handler::{*};
 use crate::functions::{*};
 mod functions;
 mod handler;
