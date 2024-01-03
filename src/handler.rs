@@ -6,8 +6,6 @@ use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use crate::functions::{*};
 
-
-
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
@@ -57,7 +55,6 @@ impl EventHandler for Handler {
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
                     button.channel_id.say(&ctx.http, format!("{} has left all queues.", player_display_name)).await.expect("Error sending message");
-
                 }
                 _ => println!("Button not implemented"),
             }

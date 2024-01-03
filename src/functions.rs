@@ -130,8 +130,6 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
         user.name.clone()
     };
 
-
-
     match role {
         Roles::Tank => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
@@ -170,6 +168,7 @@ pub async fn remove_from_queue(ctx: &Context, user: &User) {
     let mut tank_queue = data.tank_queue.lock().await;
     let mut healer_queue = data.healer_queue.lock().await;
     let mut dps_queue = data.dps_queue.lock().await;
+
     tank_queue.retain(|p| p.name.id != user.id);
     healer_queue.retain(|p| p.name.id != user.id);
     dps_queue.retain(|p| p.name.id != user.id)
@@ -181,7 +180,7 @@ fn create_player(user: &User, role: &Roles) -> Player {
         role: role.clone()
     };
 
-    player
+    return player
 }
 
 fn add_players_to_game_found(
@@ -190,6 +189,7 @@ fn add_players_to_game_found(
     dps_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>
  ) -> String {
     let mut final_queue = String::new();
+
     final_queue.push_str(&add_tank_to_game_found(tank_queue));
     final_queue.push_str(&add_healer_to_game_found(healer_queue));
     final_queue.push_str(&add_dps_to_game_found(dps_queue));
@@ -199,6 +199,7 @@ fn add_players_to_game_found(
 fn add_tank_to_game_found(mut tank_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>) -> String {
     let Some(tank) = &tank_queue.pop_front() else { return "Error adding tank to queue".to_owned() };
     let mut tank_string = String::new();
+
     tank_string.push_str(&format_game_found_output(tank));
     return tank_string
 }
@@ -206,12 +207,14 @@ fn add_tank_to_game_found(mut tank_queue: tokio::sync::MutexGuard<'_, VecDeque<P
 fn add_healer_to_game_found(mut healer_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>) -> String {
     let Some(healer) = &healer_queue.pop_front() else { return "Error adding healer to queue".to_owned() };
     let mut healer_string = String::new();
+
     healer_string.push_str(&format_game_found_output(healer));
     return healer_string
 }
 
 fn add_dps_to_game_found(mut dps_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>) -> String {
     let mut dps_string = String::new();
+
     for _ in 0 .. 3 {
         let Some(dps) = &dps_queue.pop_front() else { return "Error adding healer to queue".to_owned() };
             dps_string.push_str(&format_game_found_output(dps))
@@ -221,6 +224,7 @@ fn add_dps_to_game_found(mut dps_queue: tokio::sync::MutexGuard<'_, VecDeque<Pla
 
 fn format_game_found_output(player: &Player) -> String {
     let mut player_string = String::new();
+    
     player_string.push_str("<@");
     player_string.push_str(&player.name.id.to_string());
     player_string.push_str(">, ");

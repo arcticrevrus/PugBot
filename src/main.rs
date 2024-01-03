@@ -28,6 +28,7 @@ async fn main() {
             listen_channel: "mythic-plus-pickup".to_string()
          })));
     }
+    
     if let Err(why) = client.start().await {
         println!("Client error: {why:?}");
     }
