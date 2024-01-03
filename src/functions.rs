@@ -1,11 +1,12 @@
 use std::sync::Arc;
 use serenity::{prelude::*, all::{*}};
+use std::collections::VecDeque;
 
 pub struct Data {
     pub first_launch: bool,
-    pub tank_queue: Arc<Mutex<Vec<Player>>>,
-    pub healer_queue: Arc<Mutex<Vec<Player>>>,
-    pub dps_queue: Arc<Mutex<Vec<Player>>>,
+    pub tank_queue: Arc<Mutex<VecDeque<Player>>>,
+    pub healer_queue: Arc<Mutex<VecDeque<Player>>>,
+    pub dps_queue: Arc<Mutex<VecDeque<Player>>>,
     pub listen_channel: String
 }
 
@@ -126,14 +127,14 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
     match role {
         Roles::Tank => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
-                tank_queue.push(player);
+                tank_queue.push_back(player);
                 channel.id().say(&ctx.http, format!("{} has added to tank queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
             } else {
                 channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();            }
         },
         Roles::Healer => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
-                healer_queue.push(player);
+                healer_queue.push_back(player);
                 channel.id().say(&ctx.http, format!("{} has added to healer queue.", user.global_name.as_ref().unwrap())).await.expect("Error sending message");
             } else {
                 channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();
@@ -141,7 +142,7 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
         },
         Roles::DPS => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
-                dps_queue.push(player);
+                dps_queue.push_back(player);
                 channel.id().say(&ctx.http, format!("{} has added to dps queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
             } else {
                 channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();            }
@@ -175,9 +176,9 @@ fn create_player(user: &User, role: &Roles) -> Player {
 }
 
 fn add_players_to_game_found(
-    tank_queue: tokio::sync::MutexGuard<'_, Vec<Player>>,
-    healer_queue: tokio::sync::MutexGuard<'_, Vec<Player>>,
-    dps_queue: tokio::sync::MutexGuard<'_, Vec<Player>>
+    tank_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>,
+    healer_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>,
+    dps_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>
  ) -> String {
     let mut final_queue = String::new();
     final_queue.push_str(&add_tank_to_game_found(tank_queue));
@@ -186,24 +187,24 @@ fn add_players_to_game_found(
     return final_queue
 }
 
-fn add_tank_to_game_found(mut tank_queue: tokio::sync::MutexGuard<'_, Vec<Player>>) -> String {
-    let Some(tank) = &tank_queue.pop() else { return "Error adding tank to queue".to_owned() };
+fn add_tank_to_game_found(mut tank_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>) -> String {
+    let Some(tank) = &tank_queue.pop_front() else { return "Error adding tank to queue".to_owned() };
     let mut tank_string = String::new();
     tank_string.push_str(&format_game_found_output(tank));
     return tank_string
 }
 
-fn add_healer_to_game_found(mut healer_queue: tokio::sync::MutexGuard<'_, Vec<Player>>) -> String {
-    let Some(healer) = &healer_queue.pop() else { return "Error adding healer to queue".to_owned() };
+fn add_healer_to_game_found(mut healer_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>) -> String {
+    let Some(healer) = &healer_queue.pop_front() else { return "Error adding healer to queue".to_owned() };
     let mut healer_string = String::new();
     healer_string.push_str(&format_game_found_output(healer));
     return healer_string
 }
 
-fn add_dps_to_game_found(mut dps_queue: tokio::sync::MutexGuard<'_, Vec<Player>>) -> String {
+fn add_dps_to_game_found(mut dps_queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>) -> String {
     let mut dps_string = String::new();
     for _ in 0 .. 3 {
-        let Some(dps) = &dps_queue.pop() else { return "Error adding healer to queue".to_owned() };
+        let Some(dps) = &dps_queue.pop_front() else { return "Error adding healer to queue".to_owned() };
             dps_string.push_str(&format_game_found_output(dps))
     }
     return dps_string

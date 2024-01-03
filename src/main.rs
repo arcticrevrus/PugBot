@@ -1,4 +1,5 @@
 use std::env;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use serenity::prelude::*;
 use crate::functions::{*};
@@ -21,9 +22,9 @@ async fn main() {
         let mut data = client.data.write().await;
         data.insert::<DataKey>(Arc::new(RwLock::new(Data { 
             first_launch: true,
-            tank_queue: Arc::new(Mutex::new(Vec::new())),
-            healer_queue: Arc::new(Mutex::new(Vec::new())),
-            dps_queue: Arc::new(Mutex::new(Vec::new())),
+            tank_queue: Arc::new(Mutex::new(VecDeque::new())),
+            healer_queue: Arc::new(Mutex::new(VecDeque::new())),
+            dps_queue: Arc::new(Mutex::new(VecDeque::new())),
             listen_channel: "mythic-plus-pickup".to_string()
          })));
     }
