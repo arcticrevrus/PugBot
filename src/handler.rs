@@ -26,7 +26,12 @@ impl EventHandler for Handler {
             let user = &button.user;
             let button_id = &button.data.custom_id;
             let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
-    
+            let player_display_name = if user.global_name.is_some() {
+                user.global_name.as_ref().unwrap().to_owned()
+            } else {
+                user.name.clone()
+            };
+
             match button_id.as_str() {
                 "add_tank" => {
                     add_user_to_queue(&ctx, &user, &channel, Roles::Tank).await;
@@ -51,7 +56,7 @@ impl EventHandler for Handler {
                     clean_messages(&ctx, &button.channel_id.to_channel(&ctx.http).await.unwrap(), &ctx.http.get_current_user().await.unwrap().id).await;
                     let contents = create_message_contents(&ctx).await;
                     button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
-                    button.channel_id.say(&ctx.http, format!("{} has left all queues.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
+                    button.channel_id.say(&ctx.http, format!("{} has left all queues.", player_display_name)).await.expect("Error sending message");
 
                 }
                 _ => println!("Button not implemented"),

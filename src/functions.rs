@@ -124,28 +124,37 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
     let mut healer_queue = data.healer_queue.lock().await;
     let mut dps_queue = data.dps_queue.lock().await;
     let player = create_player(&user, &role);
+    let player_display_name = if user.global_name.is_some() {
+        user.global_name.as_ref().unwrap().to_owned()
+    } else {
+        user.name.clone()
+    };
+
+
+
     match role {
         Roles::Tank => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
                 tank_queue.push_back(player);
-                channel.id().say(&ctx.http, format!("{} has added to tank queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
+                channel.id().say(&ctx.http, format!("{} has added to tank queue.", player_display_name)).await.expect("Error sending message");
             } else {
-                channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();            }
+                channel.id().say(&ctx.http, format!("Error: {} already in queue.", player_display_name)).await.unwrap();          
+            }
         },
         Roles::Healer => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
                 healer_queue.push_back(player);
-                channel.id().say(&ctx.http, format!("{} has added to healer queue.", user.global_name.as_ref().unwrap())).await.expect("Error sending message");
+                channel.id().say(&ctx.http, format!("{} has added to healer queue.", player_display_name)).await.expect("Error sending message");
             } else {
-                channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();
+                channel.id().say(&ctx.http, format!("Error: {} already in queue.", player_display_name)).await.unwrap();
             }
         },
         Roles::DPS => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
                 dps_queue.push_back(player);
-                channel.id().say(&ctx.http, format!("{} has added to dps queue.", user.global_name.as_ref().expect("user does not have global name"))).await.expect("Error sending message");
+                channel.id().say(&ctx.http, format!("{} has added to dps queue.", player_display_name)).await.expect("Error sending message");
             } else {
-                channel.id().say(&ctx.http, format!("Error: {} already in queue.", user.global_name.as_ref().unwrap())).await.unwrap();            }
+                channel.id().say(&ctx.http, format!("Error: {} already in queue.", player_display_name)).await.unwrap();            }
         }
     }
     if tank_queue.len() >= 1 && healer_queue.len() >= 1 && dps_queue.len() >= 3 {
