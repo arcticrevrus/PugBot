@@ -35,7 +35,7 @@ pub fn check_first_launch(mut data: tokio::sync::RwLockWriteGuard<'_, Data, >) -
     if first_launch {
         data.first_launch = false;
     }
-    first_launch
+    return first_launch
 }
 
 pub async fn initialize_data(ctx: &Context) -> Arc<RwLock<Data>> {
@@ -120,7 +120,8 @@ pub fn make_buttons() -> Vec<CreateButton> {
     let leave_button = CreateButton::new("leave")
         .label("Leave")
         .style(ButtonStyle::Secondary);
-        vec![tank_button, healer_button, dps_button, leave_button]
+    
+    return vec![tank_button, healer_button, dps_button, leave_button]
 }
 
 pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, role: Roles) {
@@ -140,11 +141,13 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
 }
 
 pub async fn queue_check(ctx: &Context, channel: &Channel, mut queue: tokio::sync::MutexGuard<'_, VecDeque<Player>, >) {
+    let mut final_queue = Vec::new();
+    let mut tank_check = VecDeque::new();
+    let mut healer_check = VecDeque::new();
+    let mut dps_check = VecDeque::new();
+    let mut game_found: String = "Game found! The players are: ".to_owned();
+
     if queue.len() >= 5 {
-        let mut final_queue = Vec::new();
-        let mut tank_check = VecDeque::new();
-        let mut healer_check = VecDeque::new();
-        let mut dps_check = VecDeque::new();
         for player in queue.iter() {
             match player.role {
                 Roles::Tank => tank_check.push_back(player.clone()),
@@ -158,9 +161,7 @@ pub async fn queue_check(ctx: &Context, channel: &Channel, mut queue: tokio::syn
             for _ in 0..3 {
                 final_queue.push(dps_check.pop_front().unwrap())
             }
-            let new_queue: VecDeque<_> = queue.iter().filter(|p| !final_queue.contains(p)).cloned().collect();
-            *queue = new_queue;
-            let mut game_found: String = "Game found! The players are: ".to_owned();
+            *queue = queue.iter().filter(|p| !final_queue.contains(p)).cloned().collect();
             game_found.push_str(&add_players_to_game_found(final_queue));
             channel.id().say(&ctx, game_found.trim_end_matches(", ")).await.expect("Failed to send message");
         }
@@ -184,7 +185,8 @@ fn get_display_name(user: &User) -> String {
     } else {
         user.name.clone()
     };
-    player_display_name
+
+    return player_display_name
 }
 
 fn create_player(user: &UserId, role: &Roles) -> Player {
@@ -196,10 +198,9 @@ fn create_player(user: &UserId, role: &Roles) -> Player {
     return player
 }
 
-fn add_players_to_game_found(
-    queue: Vec<Player>
- ) -> String {
+fn add_players_to_game_found(queue: Vec<Player>) -> String {
     let mut final_queue = String::new();
+
     for _ in 0..5 {
         final_queue.push_str(&format_game_found_output(&queue.clone().pop().unwrap()))
     }

@@ -28,7 +28,6 @@ impl EventHandler for Handler {
             match button_id.as_str() {
                 "add_tank" => {
                     add_user_to_queue(&ctx, &user, &channel, Roles::Tank).await;
-
                 }
                 "add_healer" => {
                     add_user_to_queue(&ctx, &user, &channel, Roles::Healer).await;
