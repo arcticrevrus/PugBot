@@ -12,7 +12,7 @@ pub struct Data {
 
 #[derive(PartialEq)]
 pub struct Player {
-    pub name: User,
+    pub name: UserId,
     pub role: Roles,
 }
 
@@ -123,13 +123,8 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
     let mut tank_queue = data.tank_queue.lock().await;
     let mut healer_queue = data.healer_queue.lock().await;
     let mut dps_queue = data.dps_queue.lock().await;
-    let player = create_player(&user, &role);
-    let player_display_name = if user.global_name.is_some() {
-        user.global_name.as_ref().unwrap().to_owned()
-    } else {
-        user.name.clone()
-    };
-
+    let player = create_player(&user.id, &role);
+    let player_display_name = get_display_name(user);
     match role {
         Roles::Tank => {
             if tank_queue.contains(&player) != true && healer_queue.contains(&player) != true && dps_queue.contains(&player) != true {
@@ -162,19 +157,30 @@ pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, ro
     }
 }
 
-pub async fn remove_from_queue(ctx: &Context, user: &User) {
+pub async fn remove_from_queue(ctx: &Context, user: &User, channel: &Channel) {
     let data = initialize_data(&ctx).await;
     let data = data.write().await;
     let mut tank_queue = data.tank_queue.lock().await;
     let mut healer_queue = data.healer_queue.lock().await;
     let mut dps_queue = data.dps_queue.lock().await;
+    let player_display_name = get_display_name(user);
 
-    tank_queue.retain(|p| p.name.id != user.id);
-    healer_queue.retain(|p| p.name.id != user.id);
-    dps_queue.retain(|p| p.name.id != user.id)
+    tank_queue.retain(|p| p.name != user.id);
+    healer_queue.retain(|p| p.name != user.id);
+    dps_queue.retain(|p| p.name != user.id);
+    channel.id().say(&ctx.http, format!("{} has left all queues.", player_display_name)).await.expect("Error sending message");
 }
 
-fn create_player(user: &User, role: &Roles) -> Player {
+fn get_display_name(user: &User) -> String {
+    let player_display_name = if user.global_name.is_some() {
+        user.global_name.as_ref().unwrap().to_owned()
+    } else {
+        user.name.clone()
+    };
+    player_display_name
+}
+
+fn create_player(user: &UserId, role: &Roles) -> Player {
     let player = Player {
         name: user.clone(),
         role: role.clone()
@@ -226,7 +232,7 @@ fn format_game_found_output(player: &Player) -> String {
     let mut player_string = String::new();
     
     player_string.push_str("<@");
-    player_string.push_str(&player.name.id.to_string());
+    player_string.push_str(&player.name.to_string());
     player_string.push_str(">, ");
     return player_string
 }
