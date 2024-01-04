@@ -24,16 +24,16 @@ impl EventHandler for Handler {
             let user = &button.user;
             let button_id = &button.data.custom_id;
             let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
-
+            let mut added_to_queue = false;
             match button_id.as_str() {
                 "add_tank" => {
-                    add_user_to_queue(&ctx, &user, &channel, Roles::Tank).await;
+                    added_to_queue = add_user_to_queue(&ctx, &button, Roles::Tank).await;
                 }
                 "add_healer" => {
-                    add_user_to_queue(&ctx, &user, &channel, Roles::Healer).await;
+                    added_to_queue = add_user_to_queue(&ctx, &button, Roles::Healer).await;
                 }
                 "add_dps" => {
-                    add_user_to_queue(&ctx, &user, &channel, Roles::DPS).await;
+                    added_to_queue = add_user_to_queue(&ctx, &button, Roles::DPS).await;
 
                 }
                 "leave" => {
@@ -41,10 +41,11 @@ impl EventHandler for Handler {
                 }
                 _ => println!("Button not implemented"),
             }
-            clean_messages(&ctx, &channel, &ctx.http.get_current_user().await.unwrap().id).await;
-            let contents = create_message_contents(&ctx).await;
-            button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
-            button.defer(&ctx.http).await.expect("Error deferring interaction");
+            if added_to_queue {
+                clean_messages(&ctx, &channel, &ctx.http.get_current_user().await.unwrap().id).await;
+                let contents = create_message_contents(&ctx).await;
+                button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
+            }
         }
     }
     async fn ready(&self, ctx: Context, _: Ready) {

@@ -69,11 +69,11 @@ pub async fn get_listen_channel(ctx: &Context) -> ChannelId {
 }
 
 pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
-    for message in channel.id().messages(&ctx, GetMessages::new()).await.expect("Error getting channel messages") {
-        if &message.author.id == user {
-            if message.embeds.is_empty() != true {
-                message.delete(&ctx).await.expect("Error deleting messages");
-            }
+    let messages = channel.id().messages(&ctx, GetMessages::new()).await.unwrap();
+    
+    for message in messages {
+        if message.author.id == *user && !message.embeds.is_empty() {
+            message.delete(&ctx).await.expect("Error deleting messages");
         }
     }
 }
@@ -124,20 +124,29 @@ pub fn make_buttons() -> Vec<CreateButton> {
     return vec![tank_button, healer_button, dps_button, leave_button]
 }
 
-pub async fn add_user_to_queue(ctx: &Context, user: &User, channel: &Channel, role: Roles) {
+pub async fn add_user_to_queue(ctx: &Context, button: &ComponentInteraction, role: Roles) -> bool {
     let data = initialize_data(&ctx).await;
     let data = data.write().await;
     let mut queue = data.queue.lock().await; 
+    let user = &button.user;
+    let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
     let player = create_player(&user.id, &role);
     let player_display_name = get_display_name(user);
+    let added_to_queue;
 
     if !queue.clone().iter().any(|p| p.name == player.name) {
         queue.push_back(player);
         channel.id().say(&ctx.http, format!("{} has added to {:?} queue.", player_display_name, role)).await.expect("Error sending message");
+        button.defer(&ctx.http).await.expect("Error deferring interaction");
+        added_to_queue = true;
     } else {
-        channel.id().say(&ctx.http, format!("Error: {} already in queue.", player_display_name)).await.unwrap();    
+        let message = CreateInteractionResponseMessage::new().content("Error: already in a queue").flags(InteractionResponseFlags::EPHEMERAL);
+        let response = CreateInteractionResponse::Message(message) ;
+        button.create_response(&ctx.http, response).await.unwrap();
+        added_to_queue = false;
     }  
     queue_check(&ctx, &channel, queue).await;
+    return added_to_queue
 }
 
 pub async fn queue_check(ctx: &Context, channel: &Channel, mut queue: tokio::sync::MutexGuard<'_, VecDeque<Player>, >) {
@@ -176,7 +185,7 @@ pub async fn remove_from_queue(ctx: &Context, user: &User, channel: &Channel) {
     let player_display_name = get_display_name(user);
 
     queue.retain(|p| p.name != user.id);
-    channel.id().say(&ctx.http, format!("{} has left all queues.", player_display_name)).await.expect("Error sending message");
+    channel.id().say(&ctx.http, format!("{} has left the queue.", player_display_name)).await.expect("Error sending message");
 }
 
 fn get_display_name(user: &User) -> String {
