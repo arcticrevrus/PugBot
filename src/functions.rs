@@ -10,7 +10,7 @@ pub struct Data {
 
 #[derive(PartialEq, Clone)]
 pub struct Player {
-    pub name: UserId,
+    pub id: UserId,
     pub role: Roles,
 }
 
@@ -124,6 +124,25 @@ pub fn make_buttons() -> Vec<CreateButton> {
     return vec![tank_button, healer_button, dps_button, leave_button]
 }
 
+pub async fn check_user_in_queue(ctx: &Context, button: &ComponentInteraction, role: Roles) -> bool {
+    let data = initialize_data(&ctx).await;
+    let data = data.write().await;
+    let queue = data.queue.lock().await; 
+    let user = &button.user;
+
+    if !queue.iter().any(|p| p.id.to_string() == user.id.to_string() && p.role == role) {
+        return true
+    } else {
+        let message = serenity::all::CreateInteractionResponseMessage::new()
+        .content("You are already in the queue.")
+        .flags(InteractionResponseFlags::EPHEMERAL);
+    let response = CreateInteractionResponse::Message(message);
+    button.create_response(&ctx.http, response).await.unwrap();
+        return false
+    }
+
+}
+
 pub async fn add_user_to_queue(ctx: &Context, button: &ComponentInteraction, role: Roles) -> bool {
     let data = initialize_data(&ctx).await;
     let data = data.write().await;
@@ -133,18 +152,10 @@ pub async fn add_user_to_queue(ctx: &Context, button: &ComponentInteraction, rol
     let player = create_player(&user.id, &role);
     let player_display_name = get_display_name(user);
     let added_to_queue;
-
-    if !queue.clone().iter().any(|p| p.name == player.name) {
-        queue.push_back(player);
-        channel.id().say(&ctx.http, format!("{} has added to {:?} queue.", player_display_name, role)).await.expect("Error sending message");
-        button.defer(&ctx.http).await.expect("Error deferring interaction");
-        added_to_queue = true;
-    } else {
-        let message = CreateInteractionResponseMessage::new().content("Error: already in a queue").flags(InteractionResponseFlags::EPHEMERAL);
-        let response = CreateInteractionResponse::Message(message) ;
-        button.create_response(&ctx.http, response).await.unwrap();
-        added_to_queue = false;
-    }  
+    queue.push_back(player);
+    channel.id().say(&ctx.http, format!("{} has added to {:?} queue.", player_display_name, role)).await.expect("Error sending message");
+    button.defer(&ctx.http).await.expect("Error deferring interaction");
+    added_to_queue = true;
     queue_check(&ctx, &channel, queue).await;
     return added_to_queue
 }
@@ -167,7 +178,7 @@ pub async fn queue_check(ctx: &Context, channel: &Channel, mut queue: tokio::syn
         if tank_check.len() >= 1 && healer_check.len() >= 1 && dps_check.len() >= 3 {
             final_queue.push(tank_check.pop_front().unwrap());
             final_queue.push(healer_check.pop_front().unwrap());
-            for _ in 0..3 {
+            for _ in 1..=3 {
                 final_queue.push(dps_check.pop_front().unwrap())
             }
             *queue = queue.iter().filter(|p| !final_queue.contains(p)).cloned().collect();
@@ -178,14 +189,17 @@ pub async fn queue_check(ctx: &Context, channel: &Channel, mut queue: tokio::syn
 }
 
 
-pub async fn remove_from_queue(ctx: &Context, user: &User, channel: &Channel) {
+pub async fn remove_from_queue(ctx: &Context, button: &ComponentInteraction) {
     let data = initialize_data(&ctx).await;
     let data = data.write().await;
     let mut queue = data.queue.lock().await;
+    let user = &button.user;
+    let channel = &button.channel_id;
     let player_display_name = get_display_name(user);
 
-    queue.retain(|p| p.name != user.id);
-    channel.id().say(&ctx.http, format!("{} has left the queue.", player_display_name)).await.expect("Error sending message");
+    queue.retain(|p| p.id != user.id);
+    button.defer(&ctx.http).await.unwrap();
+    channel.say(&ctx.http, format!("{} has left the queue.", player_display_name)).await.expect("Error sending message");
 }
 
 fn get_display_name(user: &User) -> String {
@@ -200,7 +214,7 @@ fn get_display_name(user: &User) -> String {
 
 fn create_player(user: &UserId, role: &Roles) -> Player {
     let player = Player {
-        name: user.clone(),
+        id: user.clone(),
         role: role.clone()
     };
 
@@ -220,7 +234,7 @@ fn format_game_found_output(player: &Player) -> String {
     let mut player_string = String::new();
     
     player_string.push_str("<@");
-    player_string.push_str(&player.name.to_string());
+    player_string.push_str(&player.id.to_string());
     player_string.push_str(">, ");
     return player_string
 }

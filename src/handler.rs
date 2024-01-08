@@ -21,23 +21,28 @@ impl EventHandler for Handler {
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Some(button) = interaction.message_component() {
-            let user = &button.user;
             let button_id = &button.data.custom_id;
             let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
             let mut added_to_queue = false;
+            
             match button_id.as_str() {
                 "add_tank" => {
-                    added_to_queue = add_user_to_queue(&ctx, &button, Roles::Tank).await;
+                    if check_user_in_queue(&ctx, &button, Roles::Tank).await {
+                        added_to_queue = add_user_to_queue(&ctx, &button, Roles::Tank).await;
+                    }
                 }
                 "add_healer" => {
-                    added_to_queue = add_user_to_queue(&ctx, &button, Roles::Healer).await;
+                    if check_user_in_queue(&ctx, &button, Roles::Healer).await {
+                        added_to_queue = add_user_to_queue(&ctx, &button, Roles::Healer).await;
+                    }
                 }
                 "add_dps" => {
-                    added_to_queue = add_user_to_queue(&ctx, &button, Roles::DPS).await;
-
+                    if check_user_in_queue(&ctx, &button, Roles::DPS).await {
+                        added_to_queue = add_user_to_queue(&ctx, &button, Roles::DPS).await;
+                    }
                 }
                 "leave" => {
-                    remove_from_queue(&ctx, user, channel).await;
+                    remove_from_queue(&ctx, &button).await;
                 }
                 _ => println!("Button not implemented"),
             }
@@ -46,7 +51,7 @@ impl EventHandler for Handler {
                 let contents = create_message_contents(&ctx).await;
                 button.channel_id.send_message(&ctx, contents).await.expect("Error sending message");
             }
-        }
+        } 
     }
     async fn ready(&self, ctx: Context, _: Ready) {
         let data = initialize_data(&ctx).await;
