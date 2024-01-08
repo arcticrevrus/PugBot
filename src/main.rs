@@ -1,3 +1,5 @@
+
+
 use std::env;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -20,14 +22,22 @@ async fn main() {
 
     {
         let mut data = client.data.write().await;
+        
         data.insert::<DataKey>(Arc::new(RwLock::new(Data { 
             first_launch: true,
             queue: Arc::new(Mutex::new(VecDeque::new())),
             listen_channel: "mythic-plus-pickup".to_string()
          })));
     }
+
+    let client_data = client.data.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        check_timeouts(&client_data).await;
+    });
     
     if let Err(why) = client.start().await {
         println!("Client error: {why:?}");
     }
+
 }

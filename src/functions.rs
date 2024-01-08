@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use serenity::{prelude::*, all::{*}};
 use std::collections::VecDeque;
+use std::time::{Duration, SystemTime};
 
 pub struct Data {
     pub first_launch: bool,
@@ -12,6 +13,8 @@ pub struct Data {
 pub struct Player {
     pub id: UserId,
     pub role: Roles,
+    pub timeout: Duration,
+    pub timestamp: SystemTime
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -28,6 +31,21 @@ impl TypeMapKey for DataKey {
 pub struct DataKey;
 
 pub struct Handler;
+
+pub async fn check_timeouts(data: &Arc<serenity::prelude::RwLock<TypeMap>>) {
+    let data = data.read().await;
+    let data = data.get::<DataKey>()
+        .expect("Expected Data in TypeMap.")
+        .clone();
+    let data = data.write().await;
+    let mut queue = data.queue.lock().await;
+    let elapsed_players: Vec<_> = queue.iter()
+        .filter(|player| player.timestamp.elapsed().unwrap() >= player.timeout)
+        .map(|player| player.id) 
+        .collect();
+
+    queue.retain(|player| !elapsed_players.contains(&player.id));
+}
 
 pub fn check_first_launch(mut data: tokio::sync::RwLockWriteGuard<'_, Data, >) -> bool {
     let first_launch = data.first_launch;
@@ -215,7 +233,9 @@ fn get_display_name(user: &User) -> String {
 fn create_player(user: &UserId, role: &Roles) -> Player {
     let player = Player {
         id: user.clone(),
-        role: role.clone()
+        role: role.clone(),
+        timeout: Duration::new(10_800, 0),
+        timestamp: SystemTime::now()
     };
 
     return player
@@ -238,3 +258,4 @@ fn format_game_found_output(player: &Player) -> String {
     player_string.push_str(">, ");
     return player_string
 }
+
