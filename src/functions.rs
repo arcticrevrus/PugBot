@@ -32,7 +32,7 @@ pub struct DataKey;
 
 pub struct Handler;
 
-pub async fn check_timeouts(data: &Arc<serenity::prelude::RwLock<TypeMap>>) {
+pub async fn check_timeouts(data: &Arc<serenity::prelude::RwLock<TypeMap>>, http: &Arc<Http>) {
     let data = data.read().await;
     let data = data.get::<DataKey>()
         .expect("Expected Data in TypeMap.")
@@ -45,6 +45,10 @@ pub async fn check_timeouts(data: &Arc<serenity::prelude::RwLock<TypeMap>>) {
         .collect();
 
     queue.retain(|player| !elapsed_players.contains(&player.id));
+    for player in elapsed_players {
+        let channel = player.create_dm_channel(http).await.unwrap();
+        channel.say(http, "You have timed out of the queue.").await.unwrap();
+    }
 }
 
 pub fn check_first_launch(mut data: tokio::sync::RwLockWriteGuard<'_, Data, >) -> bool {

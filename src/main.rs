@@ -29,11 +29,12 @@ async fn main() {
             listen_channel: "mythic-plus-pickup".to_string()
          })));
     }
-
     let client_data = client.data.clone();
+    let client_http = client.http.clone();
+    
     tokio::spawn(async move {
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-        check_timeouts(&client_data).await;
+        check_timeouts(&client_data, &client_http).await;
     });
     
     if let Err(why) = client.start().await {
