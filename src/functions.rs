@@ -172,7 +172,8 @@ pub async fn add_user_to_queue(ctx: &Context, button: &ComponentInteraction, rol
     let user = &button.user;
     let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
     let player = create_player(&user.id, &role);
-    let player_display_name = get_display_name(user);
+    let guild = &button.guild_id.unwrap();
+    let player_display_name = get_display_name(&ctx, user, guild).await;
     let added_to_queue;
     queue.push_back(player);
     channel.id().say(&ctx.http, format!("{} has added to {:?} queue.", player_display_name, role)).await.expect("Error sending message");
@@ -217,16 +218,17 @@ pub async fn remove_from_queue(ctx: &Context, button: &ComponentInteraction) {
     let mut queue = data.queue.lock().await;
     let user = &button.user;
     let channel = &button.channel_id;
-    let player_display_name = get_display_name(user);
+    let guild = &button.guild_id.unwrap();
+    let player_display_name = get_display_name(&ctx, user, guild).await;
 
     queue.retain(|p| p.id != user.id);
     button.defer(&ctx.http).await.unwrap();
     channel.say(&ctx.http, format!("{} has left the queue.", player_display_name)).await.expect("Error sending message");
 }
 
-fn get_display_name(user: &User) -> String {
-    let player_display_name = if user.global_name.is_some() {
-        user.global_name.as_ref().unwrap().to_owned()
+async fn get_display_name(ctx: &Context, user: &User, guild: &GuildId) -> String {
+    let player_display_name = if user.nick_in(&ctx.http, guild.clone()).await.is_some() {
+        user.nick_in(&ctx.http, guild).await.unwrap()
     } else {
         user.name.clone()
     };
