@@ -32,7 +32,7 @@ pub struct DataKey;
 
 pub struct Handler;
 
-pub async fn check_timeouts(data: &Arc<serenity::prelude::RwLock<TypeMap>>, http: &Arc<Http>) {
+pub async fn check_timeouts(data: &Arc<serenity::prelude::RwLock<TypeMap>>, http: &Arc<Http>) -> Result<(), Error> {
     let data = data.read().await;
     let data = data.get::<DataKey>()
         .expect("Expected Data in TypeMap.")
@@ -49,45 +49,47 @@ pub async fn check_timeouts(data: &Arc<serenity::prelude::RwLock<TypeMap>>, http
         let channel = player.create_dm_channel(http).await.unwrap();
         channel.say(http, "You have timed out of the queue.").await.unwrap();
     }
+    Ok(())
 }
 
-pub fn check_first_launch(mut data: tokio::sync::RwLockWriteGuard<'_, Data, >) -> bool {
+pub fn check_first_launch(mut data: tokio::sync::RwLockWriteGuard<'_, Data, >) -> Result<bool, Error> {
     let first_launch = data.first_launch;
 
     if first_launch {
         data.first_launch = false;
     }
-    return first_launch
+    return Ok(first_launch)
 }
 
-pub async fn initialize_data(ctx: &Context) -> Arc<RwLock<Data>> {
+pub async fn initialize_data(ctx: &Context) -> Result<Arc<RwLock<Data>>, Error> {
     let data_read = ctx.data.read().await;
 
-    data_read.get::<DataKey>()
+    Ok(data_read.get::<DataKey>()
         .expect("Expected Data in TypeMap.")
-        .clone()
+        .clone())
+    
 }
 
-pub async fn get_channel_listing(ctx: &Context) -> Vec<(ChannelId, GuildChannel)> {
-    let mut channels: Vec<(ChannelId, GuildChannel)> = Vec::new();
-
-    for guild in ctx.cache.guilds() {
-        for channel in guild.channels(&ctx).await.expect("Failed to get channel listing.") {
-            channels.push(channel)
-        }
-    }
-    return channels
-}
-
-pub async fn get_listen_channel(ctx: &Context) -> ChannelId {
-    let data = initialize_data(&ctx).await;
+pub async fn get_listen_channel(ctx: &Context) -> Result<ChannelId> {
+    let data = initialize_data(&ctx).await.unwrap();
     let data = data.write().await;
-    for channel in get_channel_listing(&ctx).await {
-        if channel.1.name == data.listen_channel {
-            return channel.1.id;
+    for channel in get_channel_listing(&ctx).await.unwrap() {
+        if channel.name == data.listen_channel {
+            return Ok(channel.id);
         }
     }
     panic!("get_listen_channel failed to return channel")
+}
+
+pub async fn get_channel_listing(ctx: &Context) -> Result<Vec<GuildChannel>, Error> {
+    let mut channels: Vec<GuildChannel> = Vec::new();
+
+    for guild in ctx.cache.guilds() {
+        for channel in guild.channels(&ctx).await? {
+            channels.push(channel.1)
+        }
+    }
+    return Ok(channels)
 }
 
 pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
@@ -101,7 +103,7 @@ pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
 }
 
 pub async fn create_message_contents(ctx: &Context) -> CreateMessage {
-    let data = initialize_data(&ctx).await;
+    let data = initialize_data(&ctx).await.unwrap();
     let data = data.write().await;
     let queue = data.queue.lock().await;
     let mut tank_queue_len = 0;
@@ -147,7 +149,7 @@ pub fn make_buttons() -> Vec<CreateButton> {
 }
 
 pub async fn check_user_in_queue(ctx: &Context, button: &ComponentInteraction, role: Roles) -> bool {
-    let data = initialize_data(&ctx).await;
+    let data = initialize_data(&ctx).await.unwrap();
     let data = data.write().await;
     let queue = data.queue.lock().await; 
     let user = &button.user;
@@ -166,7 +168,7 @@ pub async fn check_user_in_queue(ctx: &Context, button: &ComponentInteraction, r
 }
 
 pub async fn add_user_to_queue(ctx: &Context, button: &ComponentInteraction, role: Roles) -> bool {
-    let data = initialize_data(&ctx).await;
+    let data = initialize_data(&ctx).await.unwrap();
     let data = data.write().await;
     let mut queue = data.queue.lock().await; 
     let user = &button.user;
@@ -213,7 +215,7 @@ pub async fn queue_check(ctx: &Context, channel: &Channel, mut queue: tokio::syn
 
 
 pub async fn remove_from_queue(ctx: &Context, button: &ComponentInteraction) {
-    let data = initialize_data(&ctx).await;
+    let data = initialize_data(&ctx).await.unwrap();
     let data = data.write().await;
     let mut queue = data.queue.lock().await;
     let user = &button.user;

@@ -13,7 +13,8 @@ impl EventHandler for Handler {
         let bot_user_id = ctx.cache.current_user().id;
         if msg.author.id != bot_user_id {
             clean_messages(&ctx, &channel, &bot_user_id).await;
-            if channel.id().name(&ctx).await.expect("Error getting channel name") == get_listen_channel(&ctx).await.name(&ctx).await.expect("Error getting listen channel") {
+            if channel.id().name(&ctx).await.expect("Error getting channel name") == get_listen_channel(&ctx).await.unwrap()
+                                                                                        .name(&ctx).await.expect("Error getting listen channel") {
                 let contents = create_message_contents(&ctx).await;
                 channel.id().send_message(&ctx, contents).await.expect("Error sending message");
             }
@@ -54,12 +55,12 @@ impl EventHandler for Handler {
         } 
     }
     async fn ready(&self, ctx: Context, _: Ready) {
-        let data = initialize_data(&ctx).await;
+        let data = initialize_data(&ctx).await.unwrap();
         let data = data.write().await;
         let first_launch = check_first_launch(data);
 
-        if first_launch {
-            let channel = get_listen_channel(&ctx).await;
+        if first_launch.unwrap() {
+            let channel = get_listen_channel(&ctx).await.unwrap();
             channel.say(&ctx.http, "Bot reloaded").await.expect("Failed to send message.");
         }
         println!("Connected");

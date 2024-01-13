@@ -26,15 +26,20 @@ async fn main() {
         data.insert::<DataKey>(Arc::new(RwLock::new(Data { 
             first_launch: true,
             queue: Arc::new(Mutex::new(VecDeque::new())),
-            listen_channel: "mythic-plus-pickup".to_string()
+            listen_channel: "pug_bot_testing".to_string()
          })));
     }
     let client_data = client.data.clone();
     let client_http = client.http.clone();
-    
+
     tokio::spawn(async move {
-        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-        check_timeouts(&client_data, &client_http).await;
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+            match check_timeouts(&client_data, &client_http).await {
+                Ok(()) => (),
+                Err(error) => println!("{error}")
+            };
+        }
     });
     
     if let Err(why) = client.start().await {
