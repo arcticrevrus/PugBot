@@ -1,10 +1,8 @@
-
-
-use std::env;
-use std::collections::VecDeque;
-use std::sync::Arc;
+use crate::functions::*;
 use serenity::prelude::*;
-use crate::functions::{*};
+use std::collections::VecDeque;
+use std::env;
+use std::sync::Arc;
 mod functions;
 mod handler;
 
@@ -14,20 +12,19 @@ async fn main() {
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
-    let mut client =
-        Client::builder(&token, intents)
-            .event_handler(Handler)
-            .await
-            .expect("Err creating client");
+    let mut client = Client::builder(&token, intents)
+        .event_handler(Handler)
+        .await
+        .expect("Err creating client");
 
     {
         let mut data = client.data.write().await;
-        
-        data.insert::<DataKey>(Arc::new(RwLock::new(Data { 
+
+        data.insert::<DataKey>(Arc::new(RwLock::new(Data {
             first_launch: true,
             queue: Arc::new(Mutex::new(VecDeque::new())),
-            listen_channel: "pug_bot_testing".to_string()
-         })));
+            listen_channel: "pug_bot_testing".to_string(),
+        })));
     }
     let client_data = client.data.clone();
     let client_http = client.http.clone();
@@ -37,13 +34,12 @@ async fn main() {
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             match check_timeouts(&client_data, &client_http).await {
                 Ok(()) => (),
-                Err(error) => println!("{error}")
+                Err(error) => println!("{error}"),
             };
         }
     });
-    
+
     if let Err(why) = client.start().await {
         println!("Client error: {why:?}");
     }
-
 }
