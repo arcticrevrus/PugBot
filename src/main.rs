@@ -23,7 +23,7 @@ async fn main() {
         data.insert::<DataKey>(Arc::new(RwLock::new(Data {
             first_launch: true,
             queue: Arc::new(Mutex::new(VecDeque::new())),
-            listen_channel: "pug_bot_testing".to_string(),
+            listen_channel: "mythic-plus-pickup".to_string(),
         })));
     }
     let client_data = client.data.clone();
