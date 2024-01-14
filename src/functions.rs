@@ -205,12 +205,22 @@ pub async fn add_user_to_queue(ctx: &Context, button: &ComponentInteraction, rol
     let player = create_player(user.id, &role);
     let guild = &button.guild_id.unwrap();
     let player_display_name = get_display_name(ctx, user, guild).await;
+    let added_role = {
+        match role {
+            Roles::Dps => "DPS",
+            Roles::Tank => "Tank",
+            Roles::Healer => "Healer",
+        }
+    };
     queue.push_back(player);
     channel
         .id()
         .say(
             &ctx.http,
-            format!("{} has added to {:?} queue.", player_display_name, role),
+            format!(
+                "{} has added to {:?} queue.",
+                player_display_name, added_role
+            ),
         )
         .await
         .expect("Error sending message");
