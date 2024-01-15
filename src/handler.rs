@@ -1,3 +1,4 @@
+use crate::commands;
 use crate::functions::*;
 use serenity::all::Interaction;
 use serenity::async_trait;
@@ -34,7 +35,7 @@ impl EventHandler for Handler {
         }
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Some(button) = interaction.message_component() {
+        if let Some(button) = interaction.clone().message_component() {
             let button_id = &button.data.custom_id;
             let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
             let mut added_to_queue = false;
@@ -74,12 +75,35 @@ impl EventHandler for Handler {
                     .await
                     .expect("Error sending message");
             }
-        }
+        } else if let Interaction::Command(command) = &interaction {
+            println!("Received command: {command:#?}");
+
+            let content = match command.data.name.as_str() {
+                "notify" => Some(commands::notify::run(&command.data.options())),
+                _ => Some("not implemented".to_string()),
+            };
+
+            if let Some(content) = content {
+                let data =
+                    serenity::builder::CreateInteractionResponseMessage::new().content(content);
+                let builder = serenity::builder::CreateInteractionResponse::Message(data);
+                if let Err(why) = command.create_response(&ctx.http, builder).await {
+                    println!("Cannot respond to slash command: {why}");
+                }
+            }
+        };
     }
     async fn ready(&self, ctx: Context, _: Ready) {
         let data = initialize_data(&ctx).await.unwrap();
         let data = data.write().await;
         let first_launch = check_first_launch(data);
+
+        for guild_id in ctx.cache.guilds() {
+            let commands = guild_id
+                .set_commands(&ctx.http, vec![commands::notify::register()])
+                .await;
+            println!("I created the following commands: {commands:#?}");
+        }
 
         if first_launch.unwrap() {
             let channel = get_listen_channel(&ctx).await.unwrap();

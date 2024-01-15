@@ -7,6 +7,7 @@ pub struct Data {
     pub first_launch: bool,
     pub queue: Arc<Mutex<VecDeque<Player>>>,
     pub listen_channel: String,
+    pub user_settings: Arc<Mutex<VecDeque<Settings>>>,
 }
 
 #[derive(PartialEq, Clone)]

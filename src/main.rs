@@ -3,6 +3,7 @@ use serenity::prelude::*;
 use std::collections::VecDeque;
 use std::env;
 use std::sync::Arc;
+mod commands;
 mod functions;
 mod handler;
 
@@ -24,6 +25,7 @@ async fn main() {
             first_launch: true,
             queue: Arc::new(Mutex::new(VecDeque::new())),
             listen_channel: "mythic-plus-pickup".to_string(),
+            user_settings: Arc::new(Mutex::new(VecDeque::new())),
         })));
     }
     let client_data = client.data.clone();
