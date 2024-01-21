@@ -16,6 +16,8 @@ mod tests {
         let player4 = create_player(UserId::new(4), Roles::Dps);
         let player5 = create_player(UserId::new(5), Roles::Healer);
         let player6 = create_player(UserId::new(6), Roles::Dps);
+        let players = vec!["6", "4", "1", "2", "3"];
+
         queue.push_back(player1);
         assert!(check_group_found(&mut queue).is_none());
         queue.push_back(player2);
@@ -30,10 +32,10 @@ mod tests {
         assert!(check_group_found(&mut queue).is_none());
         queue.push_back(player6);
         let text = check_group_found(&mut queue).unwrap();
-        let players = vec!["6", "4", "1", "2", "5"];
-        println!("{text}");
+         println!("{text}");
         for player in players {
-            assert!(text.contains(player))
+            assert!(text.contains(player));
+            println!("{:?}", queue);
         }
     }
 }

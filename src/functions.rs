@@ -228,14 +228,14 @@ pub fn check_group_found(queue: &mut MutexGuard<'_, VecDeque<Player>>) -> Option
                     let mut index: usize = 0;
                     let mut chosen_player: Option<Player> = None;
                     for (e, player) in queue.iter().enumerate() {
-                        if &check_player == &player {
+                        if check_player == player {
                             index = e;
                             chosen_player = Some(player.clone());
                         }
                     }
                     queue.remove(index);
-                    if chosen_player.is_some() {
-                        final_queue.push(chosen_player.unwrap())
+                    if let Some(p) = chosen_player {
+                        final_queue.push(p)
                     }
                 }
             }
