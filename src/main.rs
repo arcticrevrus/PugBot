@@ -6,6 +6,7 @@ use std::sync::Arc;
 mod commands;
 mod functions;
 mod handler;
+mod tests;
 
 #[tokio::main]
 async fn main() {

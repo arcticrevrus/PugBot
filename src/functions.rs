@@ -2,6 +2,7 @@ use serenity::{all::*, prelude::*};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use tokio::sync::{MutexGuard, RwLockWriteGuard};
 
 pub struct Data {
     pub first_launch: bool,
@@ -10,7 +11,7 @@ pub struct Data {
     pub user_settings: Arc<Mutex<VecDeque<Settings>>>,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Player {
     pub id: UserId,
     pub role: Roles,
@@ -61,15 +62,13 @@ pub async fn check_timeouts(
     Ok(())
 }
 
-pub fn check_first_launch(
-    mut data: tokio::sync::RwLockWriteGuard<'_, Data>,
-) -> Result<bool, Error> {
-    let first_launch = data.first_launch;
-
-    if first_launch {
+pub fn check_first_launch(data: &mut RwLockWriteGuard<'_, Data>) -> Result<bool, Error> {
+    if data.first_launch {
         data.first_launch = false;
+        Ok(true)
+    } else {
+        Ok(false)
     }
-    Ok(first_launch)
 }
 
 pub async fn initialize_data(ctx: &Context) -> Result<Arc<RwLock<Data>>, Error> {
@@ -81,9 +80,10 @@ pub async fn initialize_data(ctx: &Context) -> Result<Arc<RwLock<Data>>, Error> 
         .clone())
 }
 
-pub async fn get_listen_channel(ctx: &Context) -> Result<ChannelId> {
-    let data = initialize_data(ctx).await.unwrap();
-    let data = data.write().await;
+pub async fn get_listen_channel(
+    ctx: &Context,
+    data: &RwLockWriteGuard<'_, Data>,
+) -> Result<ChannelId> {
     let channel_name = get_channel_listing(ctx).await.unwrap();
     for channel in channel_name {
         if channel.name == data.listen_channel {
@@ -118,10 +118,7 @@ pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
     }
 }
 
-pub async fn create_message_contents(ctx: &Context) -> CreateMessage {
-    let data = initialize_data(ctx).await.unwrap();
-    let data = data.write().await;
-    let queue = data.queue.lock().await;
+pub async fn create_message_contents(queue: MutexGuard<'_, VecDeque<Player>>) -> CreateMessage {
     let mut tank_queue_len = 0;
     let mut healer_queue_len = 0;
     let mut dps_queue_len = 0;
@@ -173,127 +170,83 @@ pub fn make_buttons() -> Vec<CreateButton> {
 }
 
 pub async fn check_user_in_queue(
-    ctx: &Context,
-    button: &ComponentInteraction,
+    queue: &MutexGuard<'_, VecDeque<Player>>,
+    user: &User,
     role: Roles,
 ) -> bool {
-    let data = initialize_data(ctx).await.unwrap();
-    let data = data.write().await;
-    let queue = data.queue.lock().await;
-    let user = &button.user;
-
-    if !queue
+    !queue
         .iter()
         .any(|p| p.id.to_string() == user.id.to_string() && p.role == role)
-    {
-        true
-    } else {
-        let message = serenity::all::CreateInteractionResponseMessage::new()
-            .content("You are already in the queue.")
-            .flags(InteractionResponseFlags::EPHEMERAL);
-        let response = CreateInteractionResponse::Message(message);
-        button.create_response(&ctx.http, response).await.unwrap();
-        false
-    }
 }
 
-pub async fn add_user_to_queue(ctx: &Context, button: &ComponentInteraction, role: Roles) -> bool {
-    let data = initialize_data(ctx).await.unwrap();
-    let data = data.write().await;
-    let mut queue = data.queue.lock().await;
-    let user = &button.user;
-    let channel = &button.channel_id.to_channel(&ctx.http).await.unwrap();
-    let player = create_player(user.id, &role);
-    let guild = &button.guild_id.unwrap();
-    let player_display_name = get_display_name(ctx, user, guild).await;
-    let added_role = {
-        match role {
-            Roles::Dps => "DPS",
-            Roles::Tank => "Tank",
-            Roles::Healer => "Healer",
-        }
-    };
-    queue.push_back(player);
-    channel
-        .id()
-        .say(
-            &ctx.http,
-            format!(
-                "{} has added to {:?} queue.",
-                player_display_name, added_role
-            ),
-        )
-        .await
-        .expect("Error sending message");
-    button
-        .defer(&ctx.http)
-        .await
-        .expect("Error deferring interaction");
-    queue_check(ctx, channel, queue).await;
-    true
-}
-
-pub async fn queue_check(
-    ctx: &Context,
-    channel: &Channel,
-    mut queue: tokio::sync::MutexGuard<'_, VecDeque<Player>>,
-) {
+pub fn check_group_found(queue: &mut MutexGuard<'_, VecDeque<Player>>) -> Option<String> {
     let mut final_queue = Vec::new();
     let mut tank_check = VecDeque::new();
     let mut healer_check = VecDeque::new();
     let mut dps_check = VecDeque::new();
-    let mut game_found: String = "Game found! The players are: ".to_owned();
 
     if queue.len() >= 5 {
         for player in queue.iter() {
-            match player.role {
-                Roles::Tank => tank_check.push_back(player.clone()),
-                Roles::Healer => healer_check.push_back(player.clone()),
-                Roles::Dps => dps_check.push_back(player.clone()),
+            let is_in_tank = tank_check.iter().any(|p: &Player| p.id == player.id);
+            let is_in_healer = healer_check.iter().any(|p: &Player| p.id == player.id);
+            let is_in_dps = dps_check.iter().any(|p: &Player| p.id == player.id);
+            if !is_in_tank || !is_in_healer || !is_in_dps {
+                match player.role {
+                    Roles::Tank => tank_check.push_back(player.clone()),
+                    Roles::Healer => healer_check.push_back(player.clone()),
+                    Roles::Dps => dps_check.push_back(player.clone()),
+                }
             }
         }
         if !tank_check.is_empty() && !healer_check.is_empty() && dps_check.len() >= 3 {
-            final_queue.push(tank_check.pop_front().unwrap());
-            final_queue.push(healer_check.pop_front().unwrap());
-            for _ in 1..=3 {
-                final_queue.push(dps_check.pop_front().unwrap())
+            for check_player in tank_check {
+                let mut index: usize = 0;
+                let mut chosen_player: Option<Player> = None;
+                for (e, player) in queue.iter().enumerate() {
+                    if &check_player == player {
+                        index = e;
+                        chosen_player = Some(player.clone());
+                    }
+                }
+                queue.remove(index);
+                final_queue.push(chosen_player.unwrap())
             }
-            *queue = queue
-                .iter()
-                .filter(|p| !final_queue.contains(p))
-                .cloned()
-                .collect();
-            game_found.push_str(&add_players_to_game_found(final_queue));
-            channel
-                .id()
-                .say(&ctx, game_found.trim_end_matches(", "))
-                .await
-                .expect("Failed to send message");
+            for check_player in healer_check {
+                let mut index: usize = 0;
+                let mut chosen_player: Option<Player> = None;
+                for (e, player) in queue.iter().enumerate() {
+                    if &check_player == player {
+                        index = e;
+                        chosen_player = Some(player.clone());
+                    }
+                }
+                queue.remove(index);
+                final_queue.push(chosen_player.unwrap())
+            }
+            for _ in 1..=3 {
+                for check_player in &dps_check {
+                    let mut index: usize = 0;
+                    let mut chosen_player: Option<Player> = None;
+                    for (e, player) in queue.iter().enumerate() {
+                        if &check_player == &player {
+                            index = e;
+                            chosen_player = Some(player.clone());
+                        }
+                    }
+                    queue.remove(index);
+                    if chosen_player.is_some() {
+                        final_queue.push(chosen_player.unwrap())
+                    }
+                }
+            }
+            let game_found = add_players_to_game_found(final_queue);
+            return Some(game_found);
         }
     }
+    None
 }
 
-pub async fn remove_from_queue(ctx: &Context, button: &ComponentInteraction) {
-    let data = initialize_data(ctx).await.unwrap();
-    let data = data.write().await;
-    let mut queue = data.queue.lock().await;
-    let user = &button.user;
-    let channel = &button.channel_id;
-    let guild = &button.guild_id.unwrap();
-    let player_display_name = get_display_name(ctx, user, guild).await;
-
-    queue.retain(|p| p.id != user.id);
-    button.defer(&ctx.http).await.unwrap();
-    channel
-        .say(
-            &ctx.http,
-            format!("{} has left the queue.", player_display_name),
-        )
-        .await
-        .expect("Error sending message");
-}
-
-async fn get_display_name(ctx: &Context, user: &User, guild: &GuildId) -> String {
+pub async fn get_display_name(ctx: &Context, user: &User, guild: &GuildId) -> String {
     if user.nick_in(&ctx.http, guild).await.is_some() {
         user.nick_in(&ctx.http, guild).await.unwrap()
     } else if user.global_name.is_some() {
@@ -303,7 +256,7 @@ async fn get_display_name(ctx: &Context, user: &User, guild: &GuildId) -> String
     }
 }
 
-fn create_player(user: UserId, role: &Roles) -> Player {
+pub fn create_player(user: UserId, role: Roles) -> Player {
     Player {
         id: user,
         role: role.clone(),
@@ -313,9 +266,8 @@ fn create_player(user: UserId, role: &Roles) -> Player {
 }
 
 fn add_players_to_game_found(queue: Vec<Player>) -> String {
-    let mut final_queue = String::new();
     let mut current_queue = queue.clone();
-
+    let mut final_queue: String = "Game found! The players are: ".to_owned();
     for _ in 0..5 {
         final_queue.push_str(&format_game_found_output(current_queue.pop().unwrap()))
     }
