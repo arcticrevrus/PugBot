@@ -187,32 +187,25 @@ pub fn check_group_found(queue: &mut MutexGuard<'_, VecDeque<Player>>) -> Option
         let mut dps = Vec::new();
 
         for player in possibility {
-            match player.role {
-                Roles::Tank => {
-                    if !tanks.contains(&player.id)
-                        && !dps.contains(&player.id)
-                        && !healers.contains(&player.id)
-                        && tanks.is_empty()
-                    {
-                        tanks.push(player.id);
+            if !dps.contains(&player.id)
+                && !healers.contains(&player.id)
+                && !tanks.contains(&player.id)
+            {
+                match player.role {
+                    Roles::Tank => {
+                        if !tanks.contains(&player.id) {
+                            tanks.push(player.id)
+                        }
                     }
-                }
-                Roles::Healer => {
-                    if !healers.contains(&player.id)
-                        && !tanks.contains(&player.id)
-                        && !dps.contains(&player.id)
-                        && healers.is_empty()
-                    {
-                        healers.push(player.id);
+                    Roles::Healer => {
+                        if !healers.contains(&player.id) {
+                            healers.push(player.id)
+                        }
                     }
-                }
-                Roles::Dps => {
-                    if !dps.contains(&player.id)
-                        && !tanks.contains(&player.id)
-                        && !healers.contains(&player.id)
-                        && dps.len() < 3
-                    {
-                        dps.push(player.id);
+                    Roles::Dps => {
+                        if !dps.contains(&player.id) && dps.len() < 3 {
+                            dps.push(player.id);
+                        }
                     }
                 }
             }
