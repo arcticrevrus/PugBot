@@ -28,7 +28,7 @@ impl EventHandler for Handler {
                 .await
                 .expect("Error getting listen channel");
             if channel_name == contents_channel_name {
-                let contents = create_message_contents(queue).await;
+                let contents = create_message_contents(queue);
                 channel
                     .id()
                     .send_message(&ctx, contents)
@@ -52,21 +52,21 @@ impl EventHandler for Handler {
             let mut role_string = String::new();
             match button_id.as_str() {
                 "add_tank" => {
-                    if check_user_in_queue(&queue, user, Roles::Tank).await {
+                    if check_user_in_queue(&queue, user, Roles::Tank) {
                         queue.push_back(create_player(user.id, Roles::Tank));
                         added_to_queue = true;
                         role_string = "Tank".to_string();
                     }
                 }
                 "add_healer" => {
-                    if check_user_in_queue(&queue, user, Roles::Healer).await {
+                    if check_user_in_queue(&queue, user, Roles::Healer) {
                         queue.push_back(create_player(user.id, Roles::Healer));
                         added_to_queue = true;
                         role_string = "Healer".to_string()
                     }
                 }
                 "add_dps" => {
-                    if check_user_in_queue(&queue, user, Roles::Dps).await {
+                    if check_user_in_queue(&queue, user, Roles::Dps) {
                         queue.push_back(create_player(user.id, Roles::Dps));
                         added_to_queue = true;
                         role_string = "DPS".to_string()
@@ -106,7 +106,7 @@ impl EventHandler for Handler {
                 &ctx.http.get_current_user().await.unwrap().id,
             )
             .await;
-            let contents = create_message_contents(queue).await;
+            let contents = create_message_contents(queue);
             button
                 .channel_id
                 .send_message(&ctx, contents)

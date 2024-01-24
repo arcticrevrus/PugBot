@@ -92,7 +92,7 @@ pub async fn get_listen_channel(
     panic!("get_listen_channel failed to return channel")
 }
 
-pub async fn get_channel_listing(ctx: &Context) -> Result<Vec<GuildChannel>, Error> {
+async fn get_channel_listing(ctx: &Context) -> Result<Vec<GuildChannel>, Error> {
     let mut channels: Vec<GuildChannel> = Vec::new();
 
     for guild in ctx.cache.guilds() {
@@ -117,7 +117,7 @@ pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
     }
 }
 
-pub async fn create_message_contents(queue: MutexGuard<'_, VecDeque<Player>>) -> CreateMessage {
+pub fn create_message_contents(queue: MutexGuard<'_, VecDeque<Player>>) -> CreateMessage {
     let mut tank_queue_len = 0;
     let mut healer_queue_len = 0;
     let mut dps_queue_len = 0;
@@ -168,7 +168,7 @@ pub fn make_buttons() -> Vec<CreateButton> {
     vec![tank_button, healer_button, dps_button, leave_button]
 }
 
-pub async fn check_user_in_queue(
+pub fn check_user_in_queue(
     queue: &MutexGuard<'_, VecDeque<Player>>,
     user: &User,
     role: Roles,
