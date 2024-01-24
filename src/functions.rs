@@ -3,7 +3,6 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{MutexGuard, RwLockWriteGuard};
-
 pub struct Data {
     pub first_launch: bool,
     pub queue: Arc<Mutex<VecDeque<Player>>>,
@@ -180,67 +179,49 @@ pub async fn check_user_in_queue(
 }
 
 pub fn check_group_found(queue: &mut MutexGuard<'_, VecDeque<Player>>) -> Option<String> {
-    let mut final_queue = Vec::new();
-    let mut tank_check = VecDeque::new();
-    let mut healer_check = VecDeque::new();
-    let mut dps_check = VecDeque::new();
+    use itertools::Itertools;
+    let queue_possibilities = queue.iter().combinations(5);
+    for possibility in queue_possibilities {
+        let mut tanks = Vec::new();
+        let mut healers = Vec::new();
+        let mut dps = Vec::new();
 
-    if queue.len() >= 5 {
-        for player in queue.iter() {
-            let is_in_tank = tank_check.iter().any(|p: &Player| p.id == player.id);
-            let is_in_healer = healer_check.iter().any(|p: &Player| p.id == player.id);
-            let is_in_dps = dps_check.iter().any(|p: &Player| p.id == player.id);
-            if !is_in_tank || !is_in_healer || !is_in_dps {
-                match player.role {
-                    Roles::Tank => tank_check.push_back(player.clone()),
-                    Roles::Healer => healer_check.push_back(player.clone()),
-                    Roles::Dps => dps_check.push_back(player.clone()),
-                }
-            }
-        }
-        if !tank_check.is_empty() && !healer_check.is_empty() && dps_check.len() >= 3 {
-            for check_player in tank_check {
-                let mut index: usize = 0;
-                let mut chosen_player: Option<Player> = None;
-                for (e, player) in queue.iter().enumerate() {
-                    if &check_player == player {
-                        index = e;
-                        chosen_player = Some(player.clone());
+        for player in possibility {
+            match player.role {
+                Roles::Tank => {
+                    if !tanks.contains(&player.id)
+                        && !dps.contains(&player.id)
+                        && !healers.contains(&player.id)
+                        && tanks.is_empty()
+                    {
+                        tanks.push(player.id);
                     }
                 }
-                queue.remove(index);
-                final_queue.push(chosen_player.unwrap())
-            }
-            for check_player in healer_check {
-                let mut index: usize = 0;
-                let mut chosen_player: Option<Player> = None;
-                for (e, player) in queue.iter().enumerate() {
-                    if &check_player == player {
-                        index = e;
-                        chosen_player = Some(player.clone());
+                Roles::Healer => {
+                    if !healers.contains(&player.id)
+                        && !tanks.contains(&player.id)
+                        && !dps.contains(&player.id)
+                        && healers.is_empty()
+                    {
+                        healers.push(player.id);
                     }
                 }
-                queue.remove(index);
-                final_queue.push(chosen_player.unwrap())
-            }
-            for _ in 1..=3 {
-                for check_player in &dps_check {
-                    let mut index: usize = 0;
-                    let mut chosen_player: Option<Player> = None;
-                    for (e, player) in queue.iter().enumerate() {
-                        if check_player == player {
-                            index = e;
-                            chosen_player = Some(player.clone());
-                        }
-                    }
-                    queue.remove(index);
-                    if let Some(p) = chosen_player {
-                        final_queue.push(p)
+                Roles::Dps => {
+                    if !dps.contains(&player.id)
+                        && !tanks.contains(&player.id)
+                        && !healers.contains(&player.id)
+                        && dps.len() < 3
+                    {
+                        dps.push(player.id);
                     }
                 }
             }
-            let game_found = add_players_to_game_found(final_queue);
-            return Some(game_found);
+            if tanks.len() == 1 && healers.len() == 1 && dps.len() == 3 {
+                let group_ids = vec![tanks[0], healers[0], dps[0], dps[1], dps[2]];
+                let final_group = add_players_to_game_found(group_ids);
+                println!("Found group: {final_group:?}");
+                return Some(final_group);
+            }
         }
     }
     None
@@ -265,7 +246,7 @@ pub fn create_player(user: UserId, role: Roles) -> Player {
     }
 }
 
-fn add_players_to_game_found(queue: Vec<Player>) -> String {
+fn add_players_to_game_found(queue: Vec<UserId>) -> String {
     let mut current_queue = queue.clone();
     let mut final_queue: String = "Game found! The players are: ".to_owned();
     for _ in 0..5 {
@@ -274,11 +255,11 @@ fn add_players_to_game_found(queue: Vec<Player>) -> String {
     final_queue
 }
 
-fn format_game_found_output(player: Player) -> String {
+fn format_game_found_output(player: UserId) -> String {
     let mut player_string = String::new();
 
     player_string.push_str("<@");
-    player_string.push_str(&player.id.to_string());
+    player_string.push_str(&player.to_string());
     player_string.push_str(">, ");
     player_string
 }

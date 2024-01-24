@@ -32,10 +32,9 @@ mod tests {
         assert!(check_group_found(&mut queue).is_none());
         queue.push_back(player6);
         let text = check_group_found(&mut queue).unwrap();
-         println!("{text}");
+        println!("{text}");
         for player in players {
             assert!(text.contains(player));
-            println!("{:?}", queue);
         }
     }
 }
