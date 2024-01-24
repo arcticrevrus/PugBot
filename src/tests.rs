@@ -28,7 +28,7 @@ mod tests {
         assert!(check_group_found(&mut queue).is_none());
         queue.push_back(player4);
         assert!(check_group_found(&mut queue).is_none());
-        queue.push_back(player5);
+        queue.push_back(player5.clone());
         assert!(check_group_found(&mut queue).is_none());
         queue.push_back(player6);
         let text = check_group_found(&mut queue).unwrap();
@@ -36,5 +36,6 @@ mod tests {
         for player in players {
             assert!(text.contains(player));
         }
+        assert!(queue.contains(&player5));
     }
 }

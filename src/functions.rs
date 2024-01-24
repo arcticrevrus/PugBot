@@ -218,8 +218,13 @@ pub fn check_group_found(queue: &mut MutexGuard<'_, VecDeque<Player>>) -> Option
             }
             if tanks.len() == 1 && healers.len() == 1 && dps.len() == 3 {
                 let group_ids = vec![tanks[0], healers[0], dps[0], dps[1], dps[2]];
-                let final_group = add_players_to_game_found(group_ids);
+                let final_group = add_players_to_game_found(group_ids.clone());
                 println!("Found group: {final_group:?}");
+                for player in &group_ids {
+                    if let Some(pos) = queue.iter().position(|p| p.id == *player) {
+                        queue.remove(pos);
+                    }
+                }
                 return Some(final_group);
             }
         }
