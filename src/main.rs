@@ -1,6 +1,6 @@
 use crate::functions::*;
 use serenity::prelude::*;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::sync::Arc;
 mod commands;
@@ -26,7 +26,7 @@ async fn main() {
             first_launch: true,
             queue: Arc::new(Mutex::new(VecDeque::new())),
             listen_channel: "mythic-plus-pickup".to_string(),
-            user_settings: Arc::new(Mutex::new(VecDeque::new())),
+            user_settings: Arc::new(Mutex::new(HashMap::new())),
         })));
     }
     let client_data = client.data.clone();

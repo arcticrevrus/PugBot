@@ -1,5 +1,5 @@
 use serenity::{all::*, prelude::*};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{MutexGuard, RwLockWriteGuard};
@@ -7,7 +7,7 @@ pub struct Data {
     pub first_launch: bool,
     pub queue: Arc<Mutex<VecDeque<Player>>>,
     pub listen_channel: String,
-    pub user_settings: Arc<Mutex<VecDeque<Settings>>>,
+    pub user_settings: Arc<Mutex<HashMap<UserId, UserSettings>>>,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -16,6 +16,11 @@ pub struct Player {
     pub role: Roles,
     pub timeout: Duration,
     pub timestamp: SystemTime,
+}
+#[derive(PartialEq, Clone, Debug)]
+pub struct UserSettings {
+    timeout: Duration,
+    notify: bool,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -235,11 +240,21 @@ pub async fn get_display_name(ctx: &Context, user: &User, guild: &GuildId) -> St
     }
 }
 
-pub fn create_player(user: UserId, role: Roles) -> Player {
+pub fn create_player(
+    user_settings: &mut MutexGuard<'_, HashMap<UserId, UserSettings>>,
+    user: UserId,
+    role: Roles,
+) -> Player {
     Player {
         id: user,
         role: role.clone(),
-        timeout: Duration::new(10_800, 0),
+        timeout: user_settings
+            .entry(user)
+            .or_insert(UserSettings {
+                timeout: Duration::new(10, 800),
+                notify: true,
+            })
+            .timeout,
         timestamp: SystemTime::now(),
     }
 }
