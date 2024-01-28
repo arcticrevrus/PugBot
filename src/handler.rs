@@ -46,7 +46,6 @@ impl EventHandler for Handler {
             let data = initialize_data(&ctx).await.unwrap();
             let data = data.write().await;
             let mut queue = data.queue.lock().await;
-            let mut user_settings = data.user_settings.lock().await;
             let user = &button.user;
             let guild = &button.guild_id.unwrap();
             let player_display_name = get_display_name(&ctx, user, guild).await;
@@ -54,21 +53,21 @@ impl EventHandler for Handler {
             match button_id.as_str() {
                 "add_tank" => {
                     if check_user_in_queue(&queue, user, Roles::Tank) {
-                        queue.push_back(create_player(&mut user_settings, user.id, Roles::Tank));
+                        queue.push_back(create_player(user.id, Roles::Tank));
                         added_to_queue = true;
                         role_string = "Tank".to_string();
                     }
                 }
                 "add_healer" => {
                     if check_user_in_queue(&queue, user, Roles::Healer) {
-                        queue.push_back(create_player(&mut user_settings, user.id, Roles::Healer));
+                        queue.push_back(create_player(user.id, Roles::Healer));
                         added_to_queue = true;
                         role_string = "Healer".to_string()
                     }
                 }
                 "add_dps" => {
                     if check_user_in_queue(&queue, user, Roles::Dps) {
-                        queue.push_back(create_player(&mut user_settings, user.id, Roles::Dps));
+                        queue.push_back(create_player(user.id, Roles::Dps));
                         added_to_queue = true;
                         role_string = "DPS".to_string()
                     }

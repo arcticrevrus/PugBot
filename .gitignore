@@ -16,3 +16,4 @@ Cargo.lock
 .vscode/
 .vscode/launch.json
 .DS_Store
+settings.db
