@@ -244,9 +244,8 @@ pub async fn get_display_name(ctx: &Context, user: &User, guild: &GuildId) -> St
 pub fn create_player(user: UserId, role: Roles) -> Player {
     use crate::usersettings;
     let settings = get_user_settings(user);
-    let timeout;
-    match &settings {
-        Ok(Settings) => timeout = settings.unwrap().timeout,
+    let duration = match &settings {
+        Ok(settings) => settings.timeout,
         Err(_) => {
             set_user_settings(usersettings::Settings {
                 id: user,
@@ -254,14 +253,14 @@ pub fn create_player(user: UserId, role: Roles) -> Player {
                 notify: true,
             })
             .unwrap();
-            timeout = Duration::from_secs(10_800)
+            Duration::from_secs(10_800)
         }
-    }
+    };
 
     Player {
         id: user,
-        role: role.clone(),
-        timeout,
+        role,
+        timeout: duration,
         timestamp: SystemTime::now(),
     }
 }

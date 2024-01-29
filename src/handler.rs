@@ -123,7 +123,10 @@ impl EventHandler for Handler {
             println!("Received command: {command:#?}");
 
             let content = match command.data.name.as_str() {
-                "notify" => Some(commands::notify::run(&command.data.options())),
+                "notify" => Some(commands::notify::run(
+                    &command.user,
+                    &command.data.options(),
+                )),
                 _ => Some("not implemented".to_string()),
             };
 
