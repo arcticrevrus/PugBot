@@ -120,10 +120,12 @@ impl EventHandler for Handler {
                 button.create_response(&ctx.http, response).await.unwrap();
             }
         } else if let Interaction::Command(command) = &interaction {
-            println!("Received command: {command:#?}");
-
             let content = match command.data.name.as_str() {
                 "notify" => Some(commands::notify::run(
+                    &command.user,
+                    &command.data.options(),
+                )),
+                "expire" => Some(commands::expire::run(
                     &command.user,
                     &command.data.options(),
                 )),
@@ -131,8 +133,9 @@ impl EventHandler for Handler {
             };
 
             if let Some(content) = content {
-                let data =
-                    serenity::builder::CreateInteractionResponseMessage::new().content(content);
+                let data = serenity::builder::CreateInteractionResponseMessage::new()
+                    .content(content)
+                    .ephemeral(true);
                 let builder = serenity::builder::CreateInteractionResponse::Message(data);
                 if let Err(why) = command.create_response(&ctx.http, builder).await {
                     println!("Cannot respond to slash command: {why}");
@@ -145,10 +148,12 @@ impl EventHandler for Handler {
         let mut data = data.write().await;
         let first_launch = check_first_launch(&mut data);
         println!("{:?}", first_launch);
-
         for guild_id in ctx.cache.guilds() {
             let commands = guild_id
-                .set_commands(&ctx.http, vec![commands::notify::register()])
+                .set_commands(
+                    &ctx.http,
+                    vec![commands::notify::register(), commands::expire::register()],
+                )
                 .await;
             println!("Created commands: {commands:?}");
         }

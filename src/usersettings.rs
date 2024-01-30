@@ -2,6 +2,7 @@ use rusqlite::{Connection, Result};
 use serenity::all::*;
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct Settings {
     pub id: UserId,
     pub timeout: Duration,
@@ -24,7 +25,7 @@ pub fn set_user_settings(settings: Settings) -> Result<()> {
     )?;
 
     conn.execute(
-        "INSERT INTO users (id, timeout, notify) VALUES (?1, ?2, ?3)",
+        "INSERT OR REPLACE INTO users (id, timeout, notify) VALUES (?1, ?2, ?3)",
         (
             &settings.id.get(),
             &settings.timeout.as_secs(),
