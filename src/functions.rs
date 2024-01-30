@@ -1,13 +1,14 @@
+use crate::usersettings::{get_user_settings, set_user_settings};
 use serenity::{all::*, prelude::*};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{MutexGuard, RwLockWriteGuard};
+
 pub struct Data {
     pub first_launch: bool,
     pub queue: Arc<Mutex<VecDeque<Player>>>,
     pub listen_channel: String,
-    pub user_settings: Arc<Mutex<VecDeque<Settings>>>,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -16,6 +17,11 @@ pub struct Player {
     pub role: Roles,
     pub timeout: Duration,
     pub timestamp: SystemTime,
+}
+#[derive(PartialEq, Clone, Debug)]
+pub struct UserSettings {
+    timeout: Duration,
+    notify: bool,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -236,10 +242,25 @@ pub async fn get_display_name(ctx: &Context, user: &User, guild: &GuildId) -> St
 }
 
 pub fn create_player(user: UserId, role: Roles) -> Player {
+    use crate::usersettings;
+    let settings = get_user_settings(user);
+    let duration = match &settings {
+        Ok(settings) => settings.timeout,
+        Err(_) => {
+            set_user_settings(usersettings::Settings {
+                id: user,
+                timeout: Duration::from_secs(10_800),
+                notify: true,
+            })
+            .unwrap();
+            Duration::from_secs(10_800)
+        }
+    };
+
     Player {
         id: user,
-        role: role.clone(),
-        timeout: Duration::new(10_800, 0),
+        role,
+        timeout: duration,
         timestamp: SystemTime::now(),
     }
 }

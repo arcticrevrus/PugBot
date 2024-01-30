@@ -4,8 +4,10 @@ use crate::functions::*;
 #[tokio::test]
 async fn test_queue() {
     use serenity::all::UserId;
-    use std::{collections::VecDeque, sync::Arc};
+    use std::collections::VecDeque;
+    use std::sync::Arc;
     use tokio::sync::Mutex;
+
     let queue = Arc::new(Mutex::new(VecDeque::new()));
     let mut queue = queue.lock().await;
     let player1 = create_player(UserId::new(1), Roles::Tank);

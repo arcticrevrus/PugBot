@@ -7,6 +7,7 @@ mod commands;
 mod functions;
 mod handler;
 mod tests;
+mod usersettings;
 
 #[tokio::main]
 async fn main() {
@@ -26,7 +27,6 @@ async fn main() {
             first_launch: true,
             queue: Arc::new(Mutex::new(VecDeque::new())),
             listen_channel: "mythic-plus-pickup".to_string(),
-            user_settings: Arc::new(Mutex::new(VecDeque::new())),
         })));
     }
     let client_data = client.data.clone();
