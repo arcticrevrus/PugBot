@@ -87,11 +87,12 @@ impl EventHandler for Handler {
                 _ => println!("Button not implemented"),
             }
             if added_to_queue {
-                let message =
-                    serenity::all::CreateInteractionResponseMessage::new().content(format!(
+                let message = serenity::all::CreateInteractionResponseMessage::new()
+                    .content(format!(
                         "{} has been added to the queue as {}",
                         player_display_name, role_string
-                    ));
+                    ))
+                    .ephemeral(true);
                 let response = CreateInteractionResponse::Message(message);
                 button.create_response(&ctx.http, response).await.unwrap();
                 let added_to_queue = check_group_found(&mut queue);
@@ -115,7 +116,7 @@ impl EventHandler for Handler {
             if !added_to_queue && !left_queue {
                 let message = serenity::all::CreateInteractionResponseMessage::new()
                     .content("You are already in the queue.")
-                    .flags(InteractionResponseFlags::EPHEMERAL);
+                    .ephemeral(true);
                 let response = CreateInteractionResponse::Message(message);
                 button.create_response(&ctx.http, response).await.unwrap();
             }

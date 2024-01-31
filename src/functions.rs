@@ -55,7 +55,7 @@ pub async fn check_timeouts(
         .filter(|player| player.timestamp.elapsed().unwrap() >= player.timeout)
         .map(|player| player.id)
         .collect();
-
+    let content = create_update_contents(&queue);
     queue.retain(|player| !elapsed_players.contains(&player.id));
     for player in elapsed_players {
         let channel = player.create_dm_channel(http).await.unwrap();
@@ -64,6 +64,8 @@ pub async fn check_timeouts(
             .await
             .unwrap();
     }
+
+    update_message(http, content);
     Ok(())
 }
 
@@ -123,6 +125,20 @@ pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
     }
 }
 
+pub async fn update_message(http: &Arc<Http>, content: EditMessage) {
+    let user = http.get_current_user().await.unwrap().id;
+    for guild in http.cache().unwrap().guilds() {
+        for channel in guild.channels(http).await.unwrap().into_values() {
+            let messages = channel.messages(http, GetMessages::new()).await.unwrap();
+            for mut message in messages {
+                if message.author.id == user && !message.embeds.is_empty() {
+                    message.edit(&http, content.clone()).await.unwrap();
+                }
+            }
+        }
+    }
+}
+
 pub fn create_message_contents(queue: MutexGuard<'_, VecDeque<Player>>) -> CreateMessage {
     let mut tank_queue_len = 0;
     let mut healer_queue_len = 0;
@@ -150,6 +166,39 @@ pub fn create_message_contents(queue: MutexGuard<'_, VecDeque<Player>>) -> Creat
         .color(Colour::FOOYOO);
     let buttons = make_buttons();
     let mut contents = CreateMessage::new().add_embed(embed);
+
+    for button in &buttons {
+        contents = contents.button(button.clone())
+    }
+    contents
+}
+pub fn create_update_contents(queue: &MutexGuard<'_, VecDeque<Player>>) -> EditMessage {
+    let mut tank_queue_len = 0;
+    let mut healer_queue_len = 0;
+    let mut dps_queue_len = 0;
+    for player in queue.iter() {
+        match player.role {
+            Roles::Tank => tank_queue_len += 1,
+            Roles::Healer => healer_queue_len += 1,
+            Roles::Dps => dps_queue_len += 1,
+        }
+    }
+    let embed = CreateEmbed::new()
+        .title("The current queue is:")
+        .field(
+            "<:tank:444634700523241512>",
+            tank_queue_len.to_string(),
+            true,
+        )
+        .field(
+            "<:heal:444634700363857921>",
+            healer_queue_len.to_string(),
+            true,
+        )
+        .field("<:dps:444634700531630094>", dps_queue_len.to_string(), true)
+        .color(Colour::FOOYOO);
+    let buttons = make_buttons();
+    let mut contents = EditMessage::new().add_embed(embed);
 
     for button in &buttons {
         contents = contents.button(button.clone())
@@ -219,11 +268,7 @@ pub fn check_group_found(queue: &mut MutexGuard<'_, VecDeque<Player>>) -> Option
                 let group_ids = vec![tanks[0], healers[0], dps[0], dps[1], dps[2]];
                 let final_group = add_players_to_game_found(group_ids.clone());
                 println!("Found group: {final_group:?}");
-                for player in &group_ids {
-                    if let Some(pos) = queue.iter().position(|p| p.id == *player) {
-                        queue.remove(pos);
-                    }
-                }
+                queue.retain(|player| !group_ids.contains(&player.id));
                 return Some(final_group);
             }
         }
