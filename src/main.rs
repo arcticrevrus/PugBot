@@ -31,11 +31,12 @@ async fn main() {
     }
     let client_data = client.data.clone();
     let client_http = client.http.clone();
+    let client_cache = client.cache.clone();
 
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-            match check_timeouts(&client_data, &client_http).await {
+            match check_timeouts(&client_data, &client_http, &client_cache).await {
                 Ok(()) => (),
                 Err(error) => println!("{error}"),
             };

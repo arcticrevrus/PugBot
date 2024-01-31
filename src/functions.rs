@@ -42,6 +42,7 @@ pub struct Handler;
 pub async fn check_timeouts(
     data: &Arc<serenity::prelude::RwLock<TypeMap>>,
     http: &Arc<Http>,
+    cache: &Arc<Cache>,
 ) -> Result<(), Error> {
     let data = data.read().await;
     let data = data
@@ -55,7 +56,6 @@ pub async fn check_timeouts(
         .filter(|player| player.timestamp.elapsed().unwrap() >= player.timeout)
         .map(|player| player.id)
         .collect();
-    let content = create_update_contents(&queue);
     queue.retain(|player| !elapsed_players.contains(&player.id));
     for player in elapsed_players {
         let channel = player.create_dm_channel(http).await.unwrap();
@@ -64,8 +64,8 @@ pub async fn check_timeouts(
             .await
             .unwrap();
     }
-
-    update_message(http, content);
+    let content = create_update_contents(&queue);
+    update_message(http, cache, content).await;
     Ok(())
 }
 
@@ -125,9 +125,9 @@ pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
     }
 }
 
-pub async fn update_message(http: &Arc<Http>, content: EditMessage) {
+pub async fn update_message(http: &Arc<Http>, cache: &Arc<Cache>, content: EditMessage) {
     let user = http.get_current_user().await.unwrap().id;
-    for guild in http.cache().unwrap().guilds() {
+    for guild in cache.guilds() {
         for channel in guild.channels(http).await.unwrap().into_values() {
             let messages = channel.messages(http, GetMessages::new()).await.unwrap();
             for mut message in messages {
