@@ -1,9 +1,8 @@
 use crate::usersettings::*;
 use serenity::builder::CreateCommand;
-use serenity::model::application::ResolvedOption;
 use std::time::Duration;
 
-pub fn run(user: &serenity::all::User, _options: &[ResolvedOption]) -> String {
+pub fn run(user: &serenity::all::User) -> Option<String> {
     let settings = get_user_settings(user.id);
     let settings = match settings {
         Ok(_) => settings.unwrap(),
@@ -37,7 +36,7 @@ pub fn run(user: &serenity::all::User, _options: &[ResolvedOption]) -> String {
         },
     };
     set_user_settings(settings).unwrap();
-    response
+    Some(response)
 }
 
 pub fn register() -> CreateCommand {

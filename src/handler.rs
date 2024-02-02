@@ -74,18 +74,11 @@ impl EventHandler for Handler {
                 }
                 "leave" => {
                     queue.retain(|p| p.id != user.id);
-                    channel
-                        .id()
-                        .say(
-                            &ctx.http,
-                            format!("{} has left the queue.", player_display_name),
-                        )
-                        .await
-                        .expect("Error sending message");
                     left_queue = true;
                 }
                 _ => println!("Button not implemented"),
             }
+            let response;
             if added_to_queue {
                 let message = serenity::all::CreateInteractionResponseMessage::new()
                     .content(format!(
@@ -93,26 +86,25 @@ impl EventHandler for Handler {
                         player_display_name, role_string
                     ))
                     .ephemeral(true);
-                let response = CreateInteractionResponse::Message(message);
-                button.create_response(&ctx.http, response).await.unwrap();
+                response = CreateInteractionResponse::Message(message);
                 let added_to_queue = check_group_found(&mut queue);
                 if added_to_queue.is_some() {
                     let message = added_to_queue.unwrap();
                     channel.id().say(&ctx.http, message).await.unwrap();
                 }
+            } else if left_queue {
+                let message = serenity::all::CreateInteractionResponseMessage::new()
+                    .content("You have left the queue")
+                    .ephemeral(true);
+                response = CreateInteractionResponse::Message(message);
+            } else {
+                let message = CreateInteractionResponseMessage::new();
+                response = CreateInteractionResponse::Message(message);
             }
-            clean_messages(
-                &ctx,
-                channel,
-                &ctx.http.get_current_user().await.unwrap().id,
-            )
-            .await;
-            let contents = create_message_contents(queue);
-            button
-                .channel_id
-                .send_message(&ctx, contents)
-                .await
-                .expect("Error sending message");
+            button.create_response(&ctx.http, response).await.unwrap();
+
+            let content = create_update_contents(&queue);
+            update_message(&ctx.http, &ctx.cache, &data, content).await;
             if !added_to_queue && !left_queue {
                 let message = serenity::all::CreateInteractionResponseMessage::new()
                     .content("You are already in the queue.")
@@ -121,25 +113,28 @@ impl EventHandler for Handler {
                 button.create_response(&ctx.http, response).await.unwrap();
             }
         } else if let Interaction::Command(command) = &interaction {
+            let data = initialize_data(&ctx).await.unwrap();
+            let data = data.write().await;
+            let queue = data.queue.lock().await;
             let content = match command.data.name.as_str() {
-                "notify" => Some(commands::notify::run(
-                    &command.user,
-                    &command.data.options(),
-                )),
+                "notify" => Some(commands::notify::run(&command.user)),
                 "expire" => Some(commands::expire::run(
                     &command.user,
                     &command.data.options(),
                 )),
-                _ => Some("not implemented".to_string()),
+                "queue" => Some(commands::queue::run(&ctx, command, &queue).await),
+                _ => Some(Some("not implemented".to_string())),
             };
 
             if let Some(content) = content {
-                let data = serenity::builder::CreateInteractionResponseMessage::new()
-                    .content(content)
-                    .ephemeral(true);
-                let builder = serenity::builder::CreateInteractionResponse::Message(data);
-                if let Err(why) = command.create_response(&ctx.http, builder).await {
-                    println!("Cannot respond to slash command: {why}");
+                if content.is_some() {
+                    let data = serenity::builder::CreateInteractionResponseMessage::new()
+                        .content(content.unwrap())
+                        .ephemeral(true);
+                    let builder = serenity::builder::CreateInteractionResponse::Message(data);
+                    if let Err(why) = command.create_response(&ctx.http, builder).await {
+                        println!("Cannot respond to slash command: {why}");
+                    }
                 }
             }
         };
@@ -153,7 +148,11 @@ impl EventHandler for Handler {
             let commands = guild_id
                 .set_commands(
                     &ctx.http,
-                    vec![commands::notify::register(), commands::expire::register()],
+                    vec![
+                        commands::notify::register(),
+                        commands::expire::register(),
+                        commands::queue::register(),
+                    ],
                 )
                 .await;
             println!("Created commands: {commands:?}");
@@ -161,11 +160,6 @@ impl EventHandler for Handler {
 
         if first_launch.unwrap() {
             println!("First Launch Detected");
-            let channel = get_listen_channel(&ctx, &data).await.unwrap();
-            channel
-                .say(&ctx.http, "Bot reloaded")
-                .await
-                .expect("Failed to send message.");
         }
         println!("Connected");
     }

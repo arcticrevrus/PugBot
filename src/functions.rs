@@ -65,7 +65,7 @@ pub async fn check_timeouts(
             .unwrap();
     }
     let content = create_update_contents(&queue);
-    update_message(http, cache, content).await;
+    update_message(http, cache, &data, content).await;
     Ok(())
 }
 
@@ -92,6 +92,7 @@ pub async fn get_listen_channel(
     data: &RwLockWriteGuard<'_, Data>,
 ) -> Result<ChannelId> {
     let channel_name = get_channel_listing(ctx).await.unwrap();
+
     for channel in channel_name {
         if channel.name == data.listen_channel {
             return Ok(channel.id);
@@ -120,19 +121,36 @@ pub async fn clean_messages(ctx: &Context, channel: &Channel, user: &UserId) {
 
     for message in messages {
         if message.author.id == *user && !message.embeds.is_empty() {
-            message.delete(&ctx).await.expect("Error deleting messages");
+            for embed in &message.embeds {
+                if embed.title == Some("The current queue is:".to_owned()) {
+                    message.delete(&ctx).await.expect("Error deleting messages");
+                }
+            }
         }
     }
 }
 
-pub async fn update_message(http: &Arc<Http>, cache: &Arc<Cache>, content: EditMessage) {
+pub async fn update_message(
+    http: &Arc<Http>,
+    cache: &Arc<Cache>,
+    data: &tokio::sync::RwLockWriteGuard<'_, Data>,
+    content: EditMessage,
+) {
     let user = http.get_current_user().await.unwrap().id;
+    let listen_channel = data.listen_channel.clone();
+
     for guild in cache.guilds() {
         for channel in guild.channels(http).await.unwrap().into_values() {
-            let messages = channel.messages(http, GetMessages::new()).await.unwrap();
-            for mut message in messages {
-                if message.author.id == user && !message.embeds.is_empty() {
-                    message.edit(&http, content.clone()).await.unwrap();
+            if channel.name == listen_channel {
+                let messages = channel.messages(http, GetMessages::new()).await.unwrap();
+                for mut message in messages {
+                    if message.author.id == user && !message.embeds.is_empty() {
+                        for embed in message.embeds.clone() {
+                            if embed.title == Some("The current queue is:".to_owned()) {
+                                message.edit(&http, content.clone()).await.unwrap();
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -143,6 +161,7 @@ pub fn create_message_contents(queue: MutexGuard<'_, VecDeque<Player>>) -> Creat
     let mut tank_queue_len = 0;
     let mut healer_queue_len = 0;
     let mut dps_queue_len = 0;
+
     for player in queue.iter() {
         match player.role {
             Roles::Tank => tank_queue_len += 1,
@@ -209,13 +228,16 @@ pub fn create_update_contents(queue: &MutexGuard<'_, VecDeque<Player>>) -> EditM
 pub fn make_buttons() -> Vec<CreateButton> {
     let tank_button = CreateButton::new("add_tank")
         .label("Tank")
-        .style(ButtonStyle::Primary);
+        .style(ButtonStyle::Primary)
+        .emoji(EmojiId::new(444634700523241512));
     let healer_button = CreateButton::new("add_healer")
         .label("Healer")
-        .style(ButtonStyle::Success);
+        .style(ButtonStyle::Success)
+        .emoji(EmojiId::new(444634700363857921));
     let dps_button = CreateButton::new("add_dps")
         .label("DPS")
-        .style(ButtonStyle::Danger);
+        .style(ButtonStyle::Danger)
+        .emoji(EmojiId::new(444634700531630094));
     let leave_button = CreateButton::new("leave")
         .label("Leave")
         .style(ButtonStyle::Secondary);

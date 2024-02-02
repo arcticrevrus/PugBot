@@ -4,7 +4,7 @@ use serenity::builder::CreateCommand;
 use serenity::{builder::CreateCommandOption, model::application::ResolvedOption};
 use std::time::Duration;
 
-pub fn run(user: &serenity::all::User, options: &[ResolvedOption]) -> String {
+pub fn run(user: &serenity::all::User, options: &[ResolvedOption]) -> Option<String> {
     let initial_settings = get_user_settings(user.id);
     let settings = match initial_settings {
         Ok(_) => initial_settings.unwrap(),
@@ -33,14 +33,14 @@ pub fn run(user: &serenity::all::User, options: &[ResolvedOption]) -> String {
             settings.timeout.as_secs() / 60
         );
         set_user_settings(settings).unwrap();
-        response
+        Some(response)
     } else {
         let settings = get_user_settings(user.id).unwrap();
         let response = format!(
             "You're expiration duration is currently set to {} minutes.",
             settings.timeout.as_secs() / 60
         );
-        response
+        Some(response)
     }
 }
 
